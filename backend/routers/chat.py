@@ -1,0 +1,166 @@
+from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
+
+from typing import Optional
+import uuid
+from datetime import datetime
+
+import models
+from core.dependencies import get_current_user
+from core.websocket import chat_manager
+
+router = APIRouter(tags=["chat"])
+
+@router.get("/chats/")
+async def get_chats(current_user: models.User = Depends(get_current_user)):
+    chats = await models.Chat.find(
+        {"$or": [{"user_id": str(current_user.id)}, {"other_user_id": str(current_user.id)}]}
+    ).sort("-last_message_time").to_list()
+    
+    result = []
+    for chat in chats:
+        other_user_id = chat.other_user_id if str(chat.user_id) == str(current_user.id) else chat.user_id
+        other_user = await models.User.get(other_user_id)
+        
+        result.append({
+            "id": chat.id,
+            "other_user": {
+                "id": other_user.id,
+                "name": other_user.name,
+                "avatar": other_user.avatar,
+                "role": other_user.role
+            },
+            "last_message": chat.last_message,
+            "last_message_time": chat.last_message_time,
+            "unread_count": chat.unread_count if str(chat.user_id) == str(current_user.id) else 0,
+            "product_id": chat.product_id
+        })
+    
+    return result
+
+@router.get("/chats/{chat_id}/messages")
+async def get_chat_messages(chat_id: str, current_user: models.User = Depends(get_current_user)):
+    chat = await models.Chat.get(chat_id)
+    if chat and str(chat.user_id) != str(current_user.id) and str(chat.other_user_id) != str(current_user.id):
+        chat = None
+    
+    if not chat:
+        raise HTTPException(status_code=404, detail="Chat not found")
+    
+    messages = await models.Message.find(
+        models.Message.chat_id == chat_id
+    ).sort("timestamp").to_list()
+    
+    return messages
+
+@router.post("/chats/{chat_id}/messages")
+async def send_message(
+    chat_id: str,
+    message_text: str,
+    current_user: models.User = Depends(get_current_user)
+):
+    chat = await models.Chat.get(chat_id)
+    if chat and str(chat.user_id) != str(current_user.id) and str(chat.other_user_id) != str(current_user.id):
+        chat = None
+    
+    if not chat:
+        raise HTTPException(status_code=404, detail="Chat not found")
+    
+    new_message = models.Message(
+        chat_id=chat_id,
+        sender_id=str(current_user.id),
+        text=message_text,
+        timestamp=datetime.utcnow()
+    )
+    await new_message.insert()
+    
+    chat.last_message = message_text
+    chat.last_message_time = datetime.utcnow()
+    
+    if str(chat.user_id) != str(current_user.id):
+        chat.unread_count += 1
+    
+    await chat.save()
+    
+    return new_message
+
+@router.post("/chats/{chat_id}/mark-read")
+async def mark_chat_as_read(chat_id: str, current_user: models.User = Depends(get_current_user)):
+    chat = await models.Chat.get(chat_id)
+    if chat and str(chat.user_id) != str(current_user.id):
+        chat = None
+    
+    if not chat:
+        raise HTTPException(status_code=404, detail="Chat not found or you don't have permission")
+    
+    old_count = chat.unread_count
+    chat.unread_count = 0
+    await chat.save()
+    
+    return {"message": "Chat marked as read", "previous_unread_count": old_count}
+
+@router.post("/chats/")
+async def create_chat(
+    other_user_id: str,
+    product_id: Optional[str] = None,
+    initial_message: Optional[str] = None,
+    current_user: models.User = Depends(get_current_user)
+):
+    existing_chat = await models.Chat.find_one(
+        {"$or": [
+            {"user_id": str(current_user.id), "other_user_id": other_user_id},
+            {"user_id": other_user_id, "other_user_id": str(current_user.id)}
+        ]}
+    )
+    
+    if existing_chat:
+        return {"chat_id": existing_chat.id, "existing": True}
+    
+    new_chat = models.Chat(
+        user_id=str(current_user.id),
+        other_user_id=other_user_id,
+        product_id=product_id,
+        last_message=initial_message or "",
+        last_message_time=datetime.utcnow(),
+        unread_count=0
+    )
+    await new_chat.insert()
+    
+    if initial_message:
+        message = models.Message(
+            chat_id=str(new_chat.id),
+            sender_id=str(current_user.id),
+            text=initial_message,
+            timestamp=datetime.utcnow()
+        )
+        await message.insert()
+    
+    return {"chat_id": new_chat.id, "existing": False}
+
+@router.websocket("/ws/chat/{chat_id}/{user_id}")
+async def websocket_chat_endpoint(websocket: WebSocket, chat_id: str, user_id: str):
+    await chat_manager.connect(chat_id, websocket)
+    try:
+        while True:
+            data = await websocket.receive_text()
+            try:
+                new_message = models.Message(
+                    chat_id=chat_id,
+                    sender_id=user_id,
+                    text=data,
+                    timestamp=datetime.utcnow()
+                )
+                await new_message.insert()
+                
+                chat = await models.Chat.get(chat_id)
+                if chat:
+                    chat.last_message = data
+                    chat.last_message_time = datetime.utcnow()
+                    if str(chat.user_id) != user_id:
+                        chat.unread_count += 1
+                    await chat.save()
+            except Exception as e:
+                print(f"Error saving websocket message: {e}")
+
+            await chat_manager.broadcast(chat_id, f"{user_id}:{data}", websocket)
+    except WebSocketDisconnect:
+        chat_manager.disconnect(chat_id, websocket)
