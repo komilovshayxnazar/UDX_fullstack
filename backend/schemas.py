@@ -230,7 +230,6 @@ class OrderCreate(BaseModel):
     delivery_method: str = "courier"
 
 class OrderItem(MongoBase, OrderItemBase):
-    id: int
     price_at_purchase: float
 
 class Order(MongoBase):

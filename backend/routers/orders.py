@@ -1,7 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 
 from typing import List
-import uuid
 
 import models
 import schemas
@@ -13,9 +12,8 @@ router = APIRouter(prefix="/orders", tags=["orders"])
 async def create_order(order: schemas.OrderCreate, current_user: models.User = Depends(get_current_user)):
     total = 0.0
     db_items = []
-    order_id = str(uuid.uuid4())
     seller_id = None
-    
+
     for item in order.items:
         product = await models.Product.get(item.product_id)
         if not product:
@@ -35,7 +33,6 @@ async def create_order(order: schemas.OrderCreate, current_user: models.User = D
         db_items.append(db_item)
 
     new_order = models.Order(
-        id=order_id,
         buyer_id=str(current_user.id),
         seller_id=str(seller_id),
         total=total,

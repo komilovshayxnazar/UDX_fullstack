@@ -1,12 +1,33 @@
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
 
 from typing import Optional
-import uuid
 from datetime import datetime
+
+from beanie import PydanticObjectId
 
 import models
 from core.dependencies import get_current_user
 from core.websocket import chat_manager
+
+
+def _msg_dict(msg: models.Message) -> dict:
+    """Serialize a Message document to a plain JSON-safe dict."""
+    return {
+        "id": str(msg.id),
+        "chat_id": msg.chat_id,
+        "sender_id": msg.sender_id,
+        "text": msg.text,
+        "timestamp": msg.timestamp.isoformat() if msg.timestamp else None,
+    }
+
+
+async def _get_chat_by_id(chat_id: str) -> Optional[models.Chat]:
+    """Fetch a Chat by its string ObjectId, returning None for invalid/missing IDs."""
+    try:
+        PydanticObjectId(chat_id)  # validate format before querying
+    except Exception:
+        return None
+    return await models.Chat.get(chat_id)
 
 router = APIRouter(tags=["chat"])
 
@@ -22,9 +43,9 @@ async def get_chats(current_user: models.User = Depends(get_current_user)):
         other_user = await models.User.get(other_user_id)
         
         result.append({
-            "id": chat.id,
+            "id": str(chat.id),
             "other_user": {
-                "id": other_user.id,
+                "id": str(other_user.id),
                 "name": other_user.name,
                 "avatar": other_user.avatar,
                 "role": other_user.role
@@ -39,18 +60,18 @@ async def get_chats(current_user: models.User = Depends(get_current_user)):
 
 @router.get("/chats/{chat_id}/messages")
 async def get_chat_messages(chat_id: str, current_user: models.User = Depends(get_current_user)):
-    chat = await models.Chat.get(chat_id)
+    chat = await _get_chat_by_id(chat_id)
     if chat and str(chat.user_id) != str(current_user.id) and str(chat.other_user_id) != str(current_user.id):
         chat = None
-    
+
     if not chat:
         raise HTTPException(status_code=404, detail="Chat not found")
-    
+
     messages = await models.Message.find(
         models.Message.chat_id == chat_id
     ).sort("timestamp").to_list()
-    
-    return messages
+
+    return [_msg_dict(msg) for msg in messages]
 
 @router.post("/chats/{chat_id}/messages")
 async def send_message(
@@ -58,13 +79,13 @@ async def send_message(
     message_text: str,
     current_user: models.User = Depends(get_current_user)
 ):
-    chat = await models.Chat.get(chat_id)
+    chat = await _get_chat_by_id(chat_id)
     if chat and str(chat.user_id) != str(current_user.id) and str(chat.other_user_id) != str(current_user.id):
         chat = None
-    
+
     if not chat:
         raise HTTPException(status_code=404, detail="Chat not found")
-    
+
     new_message = models.Message(
         chat_id=chat_id,
         sender_id=str(current_user.id),
@@ -80,12 +101,12 @@ async def send_message(
         chat.unread_count += 1
     
     await chat.save()
-    
-    return new_message
+
+    return _msg_dict(new_message)
 
 @router.post("/chats/{chat_id}/mark-read")
 async def mark_chat_as_read(chat_id: str, current_user: models.User = Depends(get_current_user)):
-    chat = await models.Chat.get(chat_id)
+    chat = await _get_chat_by_id(chat_id)
     if chat and str(chat.user_id) != str(current_user.id):
         chat = None
     
@@ -113,7 +134,7 @@ async def create_chat(
     )
     
     if existing_chat:
-        return {"chat_id": existing_chat.id, "existing": True}
+        return {"chat_id": str(existing_chat.id), "existing": True}
     
     new_chat = models.Chat(
         user_id=str(current_user.id),
@@ -134,7 +155,7 @@ async def create_chat(
         )
         await message.insert()
     
-    return {"chat_id": new_chat.id, "existing": False}
+    return {"chat_id": str(new_chat.id), "existing": False}
 
 @router.websocket("/ws/chat/{chat_id}/{user_id}")
 async def websocket_chat_endpoint(websocket: WebSocket, chat_id: str, user_id: str):

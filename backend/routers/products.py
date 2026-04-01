@@ -32,7 +32,6 @@ async def add_price_history(product_id: str, price_data: schemas.PriceHistoryCre
         raise HTTPException(status_code=404, detail="Product not found")
         
     new_price = models.PriceHistory(
-        id=str(uuid.uuid4()),
         product_id=product_id,
         **price_data.model_dump()
     )
@@ -72,8 +71,7 @@ async def create_product(product: schemas.ProductCreate, current_user: models.Us
          raise HTTPException(status_code=403, detail="Only sellers can create products")
          
     new_product = models.Product(
-        id=str(uuid.uuid4()),
-        seller_id=current_user.id,
+        seller_id=str(current_user.id),
         **product.dict()
     )
     await new_product.insert()
@@ -89,7 +87,7 @@ async def read_product(product_id: str):
 @router.post("/products/interactions/")
 async def record_interaction(interaction: schemas.ProductInteractionCreate, current_user: models.User = Depends(get_current_user)):
     new_interaction = models.ProductInteraction(
-        user_id=current_user.id,
+        user_id=str(current_user.id),
         **interaction.model_dump()
     )
     await new_interaction.insert()
