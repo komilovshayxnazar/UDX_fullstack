@@ -18,6 +18,7 @@ import database
 
 # Import all routers
 from routers import auth, users, products, orders, chat, weather, dev, contracts, payments
+from routers.reviews import router as reviews_router, fraud_router
 
 # Import services (registers event handlers as a side effect)
 from services import event_bus as _eb   # noqa: F401 — side-effect import
@@ -33,15 +34,16 @@ from telegram_bot import start_bot, stop_bot
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    print("[INIT] Connecting to database...")
+    logging.info("[INIT] Connecting to database...")
     try:
         await database.init_db()
-        print("[INIT] Database initialized")
+        logging.info("[INIT] Database initialized")
     except Exception as e:
-        print(f"[INIT] Error initializing database: {e}")
+        logging.critical(f"[INIT] Database connection failed: {e}")
+        raise RuntimeError(f"Cannot start without database: {e}")
     await start_bot()
     yield
-    print("[INIT] Disconnecting from database...")
+    logging.info("[INIT] Shutting down...")
     await stop_bot()
 
 
@@ -56,12 +58,15 @@ os.makedirs("uploads", exist_ok=True)
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 # CORS
+_raw_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:5173,http://10.0.2.2:8000")
+ALLOWED_ORIGINS = [o.strip() for o in _raw_origins.split(",") if o.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "X-Idempotency-Key"],
 )
 
 # Routers
@@ -74,3 +79,5 @@ app.include_router(weather.router)
 app.include_router(dev.router)
 app.include_router(contracts.router)
 app.include_router(payments.router)
+app.include_router(reviews_router)
+app.include_router(fraud_router)

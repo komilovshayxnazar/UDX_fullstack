@@ -2,6 +2,31 @@ package com.udx.app.data
 
 import com.google.gson.annotations.SerializedName
 
+// Chat Models
+data class ChatRemote(
+    val id: String,
+    @SerializedName("other_user") val otherUser: ChatUser,
+    @SerializedName("last_message") val lastMessage: String?,
+    @SerializedName("last_message_time") val lastMessageTime: String?,
+    @SerializedName("unread_count") val unreadCount: Int = 0,
+    @SerializedName("product_id") val productId: String?
+)
+
+data class ChatUser(
+    val id: String,
+    val name: String?,
+    val avatar: String?,
+    val role: String?
+)
+
+data class MessageRemote(
+    val id: String,
+    @SerializedName("chat_id") val chatId: String,
+    @SerializedName("sender_id") val senderId: String,
+    val text: String,
+    val timestamp: String?
+)
+
 // Auth Models
 data class TokenResponse(
     @SerializedName("access_token") val accessToken: String,
@@ -12,6 +37,12 @@ data class GoogleAuthUrlResponse(
     @SerializedName("auth_url") val authUrl: String
 )
 
+data class GoogleCallbackResponse(
+    val token: String? = null,
+    val registered: Boolean = false,
+    val error: String? = null
+)
+
 // User Models
 data class User(
     val id: String,
@@ -19,7 +50,8 @@ data class User(
     val name: String?,
     val role: String,
     val avatar: String?,
-    val balance: Double = 0.0
+    val balance: Double = 0.0,
+    @SerializedName("is_public") val isPublic: Boolean = true
 )
 
 data class UserCreate(
@@ -101,7 +133,8 @@ data class TransactionRequest(
 data class UserUpdate(
     val name: String? = null,
     val avatar: String? = null,
-    val description: String? = null
+    val description: String? = null,
+    @SerializedName("is_public") val isPublic: Boolean? = null
 )
 
 data class RoleUpdate(
@@ -119,6 +152,16 @@ data class Category(
     val icon: String
 )
 
+data class SellerPublic(
+    val id: String,
+    val name: String?,
+    val avatar: String?,
+    val rating: Float = 0f,
+    @SerializedName("review_count") val reviewCount: Int = 0,
+    @SerializedName("is_online") val isOnline: Boolean = false,
+    @SerializedName("is_verified") val isVerified: Boolean = false
+)
+
 // Product Models
 data class ProductRemote(
     val id: String,
@@ -134,7 +177,35 @@ data class ProductRemote(
     val views: Int = 0,
     val sales: Int = 0,
     val gallery: List<String> = emptyList(),
-    @SerializedName("is_b2b") val isB2b: Boolean = false
+    @SerializedName("is_b2b") val isB2b: Boolean = false,
+    val seller: SellerPublic? = null
+)
+
+data class ReviewRemote(
+    val id: String,
+    @SerializedName("reviewer_id") val reviewerId: String,
+    @SerializedName("reviewer_name") val reviewerName: String?,
+    @SerializedName("seller_id") val sellerId: String,
+    @SerializedName("order_id") val orderId: String,
+    @SerializedName("product_id") val productId: String?,
+    val rating: Int,
+    val comment: String,
+    @SerializedName("is_verified_purchase") val isVerifiedPurchase: Boolean,
+    @SerializedName("created_at") val createdAt: String
+)
+
+data class ReviewCreate(
+    @SerializedName("seller_id") val sellerId: String,
+    @SerializedName("order_id") val orderId: String,
+    @SerializedName("product_id") val productId: String? = null,
+    val rating: Int,
+    val comment: String
+)
+
+data class FraudReportCreate(
+    @SerializedName("target_user_id") val targetUserId: String? = null,
+    @SerializedName("target_product_id") val targetProductId: String? = null,
+    val reason: String
 )
 
 data class ProductCreate(
@@ -165,6 +236,41 @@ data class PriceHistory(
     @SerializedName("product_id") val productId: String,
     val price: Double,
     val date: String
+)
+
+data class PublicUserProfile(
+    val id: String,
+    val name: String?,
+    val avatar: String?,
+    val description: String?,
+    val rating: Float,
+    @SerializedName("review_count") val reviewCount: Int,
+    @SerializedName("is_online") val isOnline: Boolean,
+    @SerializedName("is_verified") val isVerified: Boolean,
+    @SerializedName("created_at") val createdAt: String,
+    @SerializedName("total_orders") val totalOrders: Int,
+    @SerializedName("successful_orders") val successfulOrders: Int,
+    @SerializedName("unsuccessful_orders") val unsuccessfulOrders: Int,
+    @SerializedName("in_progress_orders") val inProgressOrders: Int,
+    val reviews: List<ReviewRemote> = emptyList()
+)
+
+data class OrderItemCreate(
+    @SerializedName("product_id") val productId: String,
+    val quantity: Int
+)
+
+data class OrderCreate(
+    val items: List<OrderItemCreate>,
+    @SerializedName("delivery_method") val deliveryMethod: String = "courier"
+)
+
+data class OrderOut(
+    val id: String,
+    val date: String,
+    val status: String,
+    val total: Double,
+    val items: List<OrderItemCreate>
 )
 
 data class ContractRemote(

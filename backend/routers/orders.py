@@ -18,13 +18,18 @@ async def create_order(order: schemas.OrderCreate, current_user: models.User = D
         product = await models.Product.get(item.product_id)
         if not product:
             raise HTTPException(status_code=404, detail=f"Product {item.product_id} not found")
-        
+
         if seller_id is None:
             seller_id = product.seller_id
-        
+        elif str(product.seller_id) != str(seller_id):
+            raise HTTPException(
+                status_code=400,
+                detail="All items in an order must belong to the same seller"
+            )
+
         price = product.price
         total += price * item.quantity
-        
+
         db_item = models.OrderItem(
             product_id=str(product.id),
             quantity=item.quantity,
@@ -45,7 +50,8 @@ async def create_order(order: schemas.OrderCreate, current_user: models.User = D
     return new_order
 
 @router.get("/", response_model=List[schemas.Order])
-async def read_orders(skip: int = 0, limit: int = 100, current_user: models.User = Depends(get_current_user)):
+async def read_orders(skip: int = 0, limit: int = 20, current_user: models.User = Depends(get_current_user)):
+    limit = min(limit, 100)
     orders = await models.Order.find(
         {"$or": [{"buyer_id": str(current_user.id)}, {"seller_id": str(current_user.id)}]}
     ).skip(skip).limit(limit).to_list()

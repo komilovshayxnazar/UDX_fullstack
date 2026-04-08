@@ -8,6 +8,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -22,6 +24,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.udx.app.R
+import com.udx.app.data.NetworkModule
+import com.udx.app.data.ProductRemote
+import com.udx.app.data.InteractionRequest
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -33,20 +39,46 @@ fun DashboardScreen(
     onNavigateToSettings: () -> Unit = {},
     onNavigateToCategory: (String, String) -> Unit = { _, _ -> },
     onAddToCart: (com.udx.app.data.ProductRemote) -> Unit = {},
-    cartItemCount: Int = 0
+    onNavigateToSeller: (String) -> Unit = {},
+    cartItemCount: Int = 0,
+    isSeller: Boolean = false,
+    onSwitchRole: () -> Unit = {}
 ) {
     var searchQuery by remember { mutableStateOf("") }
     var categories by remember { mutableStateOf<List<com.udx.app.data.Category>>(emptyList()) }
     var selectedCategoryId by remember { mutableStateOf<String?>(null) }
     var isLoadingCategories by remember { mutableStateOf(true) }
+    var unreadMessageCount by remember { mutableStateOf(0) }
+    var products by remember { mutableStateOf<List<ProductRemote>>(emptyList()) }
+    var isLoadingProducts by remember { mutableStateOf(true) }
+    val scope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) {
         try {
-            categories = com.udx.app.data.NetworkModule.apiService.getCategories()
+            categories = NetworkModule.apiService.getCategories()
         } catch (e: Exception) {
             // Fallback if needed or just empty
         } finally {
             isLoadingCategories = false
+        }
+        try {
+            val chats = NetworkModule.apiService.getChats()
+            unreadMessageCount = chats.sumOf { it.unreadCount }
+        } catch (_: Exception) {}
+    }
+
+    LaunchedEffect(selectedCategoryId, searchQuery) {
+        isLoadingProducts = true
+        kotlinx.coroutines.delay(300) // debounce
+        try {
+            products = NetworkModule.apiService.getProducts(
+                categoryId = selectedCategoryId,
+                query = searchQuery.trim().ifEmpty { null }
+            )
+        } catch (_: Exception) {
+            products = emptyList()
+        } finally {
+            isLoadingProducts = false
         }
     }
 
@@ -94,28 +126,40 @@ fun DashboardScreen(
                         Surface(
                             shape = RoundedCornerShape(16.dp),
                             color = Color.White.copy(alpha = 0.2f),
-                            modifier = Modifier.padding(end = 4.dp)
+                            modifier = Modifier
+                                .padding(end = 4.dp)
+                                .clickable { onSwitchRole() }
                         ) {
                             Row(
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Icon(
-                                    Icons.Default.Home,
-                                    contentDescription = "Seller",
+                                    if (isSeller) Icons.Default.ShoppingCart else Icons.Default.Store,
+                                    contentDescription = if (isSeller) "Switch to Buyer" else "Switch to Seller",
                                     tint = Color.White,
                                     modifier = Modifier.size(16.dp)
                                 )
                                 Spacer(modifier = Modifier.width(4.dp))
-                                Text(stringResource(R.string.seller), color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                Text(
+                                    if (isSeller) "Buyer" else "Seller",
+                                    color = Color.White,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
                             }
                         }
 
                         // Icons
                         BadgedBox(
                             badge = {
-                                Badge(containerColor = Color.Red) {
-                                    Text("3", color = Color.White)
+                                if (unreadMessageCount > 0) {
+                                    Badge(containerColor = Color.Red) {
+                                        Text(
+                                            if (unreadMessageCount > 99) "99+" else unreadMessageCount.toString(),
+                                            color = Color.White
+                                        )
+                                    }
                                 }
                             },
                             modifier = Modifier.clickable { onNavigateToMessages() }
@@ -144,8 +188,15 @@ fun DashboardScreen(
                 OutlinedTextField(
                     value = searchQuery,
                     onValueChange = { searchQuery = it },
-                    placeholder = { Text(stringResource(R.string.search_products)) },
-                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search icon") },
+                    placeholder = { Text(stringResource(R.string.search_products), color = Color(0xFF888888)) },
+                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search icon", tint = Color(0xFF666666)) },
+                    trailingIcon = {
+                        if (searchQuery.isNotEmpty()) {
+                            IconButton(onClick = { searchQuery = "" }) {
+                                Icon(Icons.Default.Clear, contentDescription = "Tozalash", tint = Color(0xFF666666))
+                            }
+                        }
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(50.dp),
@@ -155,155 +206,159 @@ fun DashboardScreen(
                         unfocusedContainerColor = Color.White,
                         disabledContainerColor = Color.White,
                         focusedBorderColor = Color.Transparent,
-                        unfocusedBorderColor = Color.Transparent
+                        unfocusedBorderColor = Color.Transparent,
+                        focusedTextColor = Color(0xFF1A1A1A),
+                        unfocusedTextColor = Color(0xFF1A1A1A),
+                        cursorColor = Color(0xFF9C27B0)
                     ),
                     singleLine = true
                 )
             }
         }
 
-        // Scrollable content area
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 16.dp)
+        // Single scrollable area — header + products together
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(0.dp)
         ) {
-            Spacer(modifier = Modifier.height(16.dp))
-
             // Dashboard Cards Row
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                // Weather Card
-                Card(
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(140.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFF2196F3)),
-                    shape = RoundedCornerShape(16.dp)
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(16.dp),
-                        verticalArrangement = Arrangement.SpaceBetween
+                    // Weather Card
+                    Card(
+                        modifier = Modifier.weight(1f).height(140.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFF2196F3)),
+                        shape = RoundedCornerShape(16.dp)
                     ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
+                        Column(
+                            modifier = Modifier.fillMaxSize().padding(16.dp),
+                            verticalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text(stringResource(R.string.weather), color = Color.White, fontSize = 16.sp)
-                            Text("⛅", fontSize = 20.sp)
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(stringResource(R.string.weather), color = Color.White, fontSize = 16.sp)
+                                Text("⛅", fontSize = 20.sp)
+                            }
+                            Text("24°C", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                            Text(stringResource(R.string.partly_cloudy), color = Color.White, fontSize = 14.sp)
                         }
-                        Text("24°C", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
-                        Text(stringResource(R.string.partly_cloudy), color = Color.White, fontSize = 14.sp)
                     }
-                }
 
-                // Marketplace Card
-                Card(
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(140.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFF00C853)),
-                    shape = RoundedCornerShape(16.dp)
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(16.dp),
-                        verticalArrangement = Arrangement.SpaceBetween
+                    // Marketplace Card
+                    Card(
+                        modifier = Modifier.weight(1f).height(140.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFF00C853)),
+                        shape = RoundedCornerShape(16.dp)
                     ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
+                        Column(
+                            modifier = Modifier.fillMaxSize().padding(16.dp),
+                            verticalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text(stringResource(R.string.marketplace), color = Color.White, fontSize = 16.sp)
-                            Icon(Icons.Default.Star, contentDescription = "Trend", tint = Color.White, modifier = Modifier.size(20.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(stringResource(R.string.marketplace), color = Color.White, fontSize = 16.sp)
+                                Icon(Icons.Default.Star, contentDescription = "Trend", tint = Color.White, modifier = Modifier.size(20.dp))
+                            }
+                            Text(stringResource(R.string.market_trends), color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                            Text(stringResource(R.string.analytics), color = Color.White, fontSize = 14.sp)
                         }
-                        Text(stringResource(R.string.market_trends), color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                        Text(stringResource(R.string.analytics), color = Color.White, fontSize = 14.sp)
                     }
                 }
+                Spacer(modifier = Modifier.height(24.dp))
             }
-
-            Spacer(modifier = Modifier.height(24.dp))
 
             // Category Section
-            Text(
-                "Category",
-                fontSize = 18.sp,
-                color = Color.Black,
-                fontWeight = FontWeight.SemiBold
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(androidx.compose.foundation.rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                if (isLoadingCategories) {
-                    repeat(5) {
-                        Box(modifier = Modifier.width(76.dp).height(80.dp).background(Color.Gray.copy(alpha = 0.1f), RoundedCornerShape(12.dp)))
-                    }
-                } else if (categories.isEmpty()) {
-                    // Fallback categories if backend is not reachable
-                    CategoryItem("🥕", "Vegetables") { onNavigateToCategory("vegetables", "Vegetables") }
-                    CategoryItem("🍎", "Fruits") { onNavigateToCategory("fruits", "Fruits") }
-                    CategoryItem("🥛", "Dairy") { onNavigateToCategory("dairy", "Dairy") }
-                    CategoryItem("🥩", "Meat") { onNavigateToCategory("meat", "Meat") }
-                } else {
-                    categories.forEach { category ->
-                        CategoryItem(
-                            emoji = category.icon,
-                            title = category.name,
-                            isSelected = selectedCategoryId == category.id,
-                            onClick = { 
-                                onNavigateToCategory(category.id, category.name)
-                            }
-                        )
+            item {
+                Text("Category", fontSize = 18.sp, color = MaterialTheme.colorScheme.onBackground, fontWeight = FontWeight.SemiBold)
+                Spacer(modifier = Modifier.height(12.dp))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(androidx.compose.foundation.rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    if (isLoadingCategories) {
+                        repeat(5) {
+                            Box(modifier = Modifier.width(76.dp).height(80.dp).background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f), RoundedCornerShape(12.dp)))
+                        }
+                    } else if (categories.isEmpty()) {
+                        CategoryItem("🥕", "Vegetables") { onNavigateToCategory("vegetables", "Vegetables") }
+                        CategoryItem("🍎", "Fruits") { onNavigateToCategory("fruits", "Fruits") }
+                        CategoryItem("🥛", "Dairy") { onNavigateToCategory("dairy", "Dairy") }
+                        CategoryItem("🥩", "Meat") { onNavigateToCategory("meat", "Meat") }
+                    } else {
+                        categories.forEach { category ->
+                            CategoryItem(
+                                emoji = category.icon,
+                                title = category.name,
+                                isSelected = selectedCategoryId == category.id,
+                                onClick = { onNavigateToCategory(category.id, category.name) }
+                            )
+                        }
                     }
                 }
+                Spacer(modifier = Modifier.height(24.dp))
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Online Farmers Section
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier
-                        .size(12.dp)
-                        .background(Color(0xFF4CAF50), RoundedCornerShape(percent = 50))
-                )
-                Spacer(modifier = Modifier.width(8.dp))
+            // Online Farmers Section header
+            item {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(12.dp)
+                            .background(Color(0xFF4CAF50), RoundedCornerShape(percent = 50))
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        "Online Farmers",
+                        fontSize = 18.sp,
+                        color = MaterialTheme.colorScheme.onBackground,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+                Spacer(modifier = Modifier.height(12.dp))
                 Text(
-                    "Online Farmers",
+                    if (selectedCategoryId == null) "All Products" else "Category Products",
                     fontSize = 18.sp,
-                    color = Color.Black,
+                    color = MaterialTheme.colorScheme.onBackground,
                     fontWeight = FontWeight.SemiBold
                 )
+                Spacer(modifier = Modifier.height(8.dp))
             }
-            Spacer(modifier = Modifier.height(12.dp))
 
-            // All Products
-            Text(
-                if (selectedCategoryId == null) "All Products" else "Category Products",
-                fontSize = 18.sp,
-                color = Color.Black,
-                fontWeight = FontWeight.SemiBold
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            
-            Box(modifier = Modifier.weight(1f)) {
-                ProductListScreen(
-                    onLogout = onLogout,
-                    onAddProduct = onAddProduct,
-                    onAddToCart = onAddToCart,
-                    externalCategoryId = selectedCategoryId,
-                    onCategorySelected = { selectedCategoryId = it }
-                )
+            // Products
+            if (isLoadingProducts) {
+                item {
+                    Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator()
+                    }
+                }
+            } else {
+                items(products) { product ->
+                    ProductCard(
+                        product = product,
+                        onClick = {
+                            scope.launch {
+                                try {
+                                    NetworkModule.apiService.recordInteraction(
+                                        InteractionRequest(product.id, "view")
+                                    )
+                                } catch (_: Exception) {}
+                            }
+                        },
+                        onAddToCart = { onAddToCart(product) },
+                        onSellerClick = onNavigateToSeller
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                }
             }
         }
     }
@@ -313,7 +368,7 @@ fun DashboardScreen(
 fun CategoryItem(emoji: String, title: String, isSelected: Boolean = false, onClick: () -> Unit) {
     Card(
         colors = CardDefaults.cardColors(
-            containerColor = if (isSelected) Color(0xFFE1BEE7) else Color.White
+            containerColor = if (isSelected) Color(0xFFE1BEE7) else MaterialTheme.colorScheme.surface
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         shape = RoundedCornerShape(12.dp),
@@ -327,7 +382,7 @@ fun CategoryItem(emoji: String, title: String, isSelected: Boolean = false, onCl
         ) {
             Text(emoji, fontSize = 24.sp)
             Spacer(modifier = Modifier.height(8.dp))
-            Text(title, fontSize = 12.sp, color = if (isSelected) Color(0xFF9C27B0) else Color.DarkGray, maxLines = 1)
+            Text(title, fontSize = 12.sp, color = if (isSelected) Color(0xFF9C27B0) else MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
         }
     }
 }

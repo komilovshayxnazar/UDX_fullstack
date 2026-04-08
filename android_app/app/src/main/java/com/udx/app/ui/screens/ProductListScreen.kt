@@ -10,6 +10,9 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Flag
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.VerifiedUser
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -18,15 +21,18 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.udx.app.R
 import com.udx.app.data.NetworkModule
 import com.udx.app.data.ProductRemote
 import com.udx.app.data.InteractionRequest
+import com.udx.app.data.FraudReportCreate
 import kotlinx.coroutines.launch
 import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextOverflow
 
 @Composable
 fun ProductListScreen(
@@ -318,7 +324,7 @@ fun TrendCard(product: ProductRemote, onClick: () -> Unit = {}, onAddToCart: () 
                 )
                 IconButton(
                     onClick = onAddToCart,
-                    modifier = Modifier.align(Alignment.TopEnd).padding(4.dp).size(24.dp).background(Color.White.copy(alpha = 0.7f), RoundedCornerShape(percent = 50))
+                    modifier = Modifier.align(Alignment.TopEnd).padding(4.dp).size(24.dp).background(MaterialTheme.colorScheme.surface.copy(alpha = 0.7f), RoundedCornerShape(percent = 50))
                 ) {
                     Icon(Icons.Default.Add, contentDescription = "Add to Cart", modifier = Modifier.size(16.dp), tint = Color(0xFF9C27B0))
                 }
@@ -332,49 +338,150 @@ fun TrendCard(product: ProductRemote, onClick: () -> Unit = {}, onAddToCart: () 
 }
 
 @Composable
-fun ProductCard(product: ProductRemote, onClick: () -> Unit = {}, onAddToCart: () -> Unit = {}) {
+fun ProductCard(
+    product: ProductRemote,
+    onClick: () -> Unit = {},
+    onAddToCart: () -> Unit = {},
+    onSellerClick: (String) -> Unit = {}
+) {
+    val scope = rememberCoroutineScope()
+    var showReportDialog by remember { mutableStateOf(false) }
+    var reportReason by remember { mutableStateOf("") }
+    var reportSent by remember { mutableStateOf(false) }
+
+    if (showReportDialog) {
+        AlertDialog(
+            onDismissRequest = { showReportDialog = false },
+            title = { Text("Shikoyat yuborish") },
+            text = {
+                Column {
+                    Text("Bu mahsulot yoki sotuvchi haqida shikoyat sababini kiriting:", style = MaterialTheme.typography.bodyMedium)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = reportReason,
+                        onValueChange = { if (it.length <= 500) reportReason = it },
+                        placeholder = { Text("Sabab (kamida 10 ta belgi)") },
+                        minLines = 3,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        if (reportReason.trim().length >= 10) {
+                            scope.launch {
+                                try {
+                                    NetworkModule.apiService.reportFraud(
+                                        FraudReportCreate(
+                                            targetProductId = product.id,
+                                            targetUserId = product.seller?.id,
+                                            reason = reportReason.trim()
+                                        )
+                                    )
+                                    reportSent = true
+                                } catch (_: Exception) {}
+                                showReportDialog = false
+                                reportReason = ""
+                            }
+                        }
+                    }
+                ) { Text("Yuborish") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showReportDialog = false; reportReason = "" }) { Text("Bekor") }
+            }
+        )
+    }
+
     Card(
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
         modifier = Modifier.fillMaxWidth().clickable { onClick() }
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            val imageUrl = if (product.image.startsWith("http")) product.image else "http://10.0.2.2:8000${product.image}"
-            AsyncImage(
-                model = imageUrl,
-                contentDescription = product.name,
-                modifier = Modifier.size(80.dp),
-                contentScale = ContentScale.Crop
-            )
-
-            Spacer(modifier = Modifier.width(16.dp))
-
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = product.name,
-                    style = MaterialTheme.typography.titleMedium
-                )
-                Text(
-                    text = "$${product.price} / ${product.unit}",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.secondary
-                )
-                Text(
-                    text = product.description,
-                    style = MaterialTheme.typography.bodySmall,
-                    maxLines = 2
-                )
-            }
-            
-            IconButton(
-                onClick = onAddToCart,
-                colors = IconButtonDefaults.iconButtonColors(containerColor = Color(0xFF9C27B0), contentColor = Color.White)
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp, top = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(Icons.Default.Add, contentDescription = "Add to Cart")
+                val imageUrl = if (product.image.startsWith("http")) product.image else "http://10.0.2.2:8000${product.image}"
+                AsyncImage(
+                    model = imageUrl,
+                    contentDescription = product.name,
+                    modifier = Modifier.size(80.dp),
+                    contentScale = ContentScale.Crop
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(product.name, style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        "$${product.price} / ${product.unit}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.secondary
+                    )
+                    Text(product.description, style = MaterialTheme.typography.bodySmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                }
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    IconButton(
+                        onClick = onAddToCart,
+                        colors = IconButtonDefaults.iconButtonColors(containerColor = Color(0xFF9C27B0), contentColor = Color.White),
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = "Add to Cart", modifier = Modifier.size(20.dp))
+                    }
+                    IconButton(
+                        onClick = { showReportDialog = true },
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(Icons.Default.Flag, contentDescription = "Report", tint = if (reportSent) Color.Red else Color.Gray, modifier = Modifier.size(16.dp))
+                    }
+                }
+            }
+
+            // Sotuvchi satri
+            product.seller?.let { seller ->
+                Divider(modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp), thickness = 0.5.dp)
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 10.dp)
+                        .clickable { onSellerClick(seller.id) },
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    // Avatar (harf doirasi)
+                    Box(
+                        modifier = Modifier.size(24.dp).background(Color(0xFF9C27B0), RoundedCornerShape(percent = 50)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = (seller.name?.firstOrNull()?.uppercaseChar() ?: '?').toString(),
+                            color = Color.White,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    Text(
+                        seller.name ?: "Noma'lum sotuvchi",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        color = Color(0xFF9C27B0),
+                        modifier = Modifier.weight(1f, fill = false)
+                    )
+                    if (seller.isVerified) {
+                        Icon(Icons.Default.VerifiedUser, contentDescription = "Tasdiqlangan", tint = Color(0xFF2196F3), modifier = Modifier.size(14.dp))
+                    }
+                    if (seller.isOnline) {
+                        Box(modifier = Modifier.size(8.dp).background(Color(0xFF4CAF50), RoundedCornerShape(percent = 50)))
+                    }
+                    Spacer(modifier = Modifier.weight(1f))
+                    Icon(Icons.Default.Star, contentDescription = null, tint = Color(0xFFFFC107), modifier = Modifier.size(14.dp))
+                    Text(
+                        "%.1f".format(seller.rating),
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text("(${seller.reviewCount})", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                }
             }
         }
     }

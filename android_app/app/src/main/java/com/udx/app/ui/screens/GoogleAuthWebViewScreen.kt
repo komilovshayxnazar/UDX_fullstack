@@ -79,38 +79,31 @@ fun GoogleAuthWebViewScreen(
                                         isLoading = true
                                         scope.launch {
                                             try {
-                                                // Call the backend callback endpoint via Retrofit
-                                                // (uses 10.0.2.2 so it reaches the host machine)
                                                 val response = NetworkModule.apiService.handleGoogleCallback(code, state)
-                                                val location = response.headers()["Location"] ?: ""
-
                                                 when {
-                                                    location.contains("token=") -> {
-                                                        val token = location
-                                                            .substringAfter("token=")
-                                                            .substringBefore("&")
-                                                        TokenManager.saveToken(token)
+                                                    response.token != null -> {
+                                                        TokenManager.saveToken(response.token)
                                                         onSuccess()
                                                     }
-                                                    location.contains("error=already_registered") -> {
-                                                        errorMessage = "This Google account is already registered. Please login instead."
+                                                    response.error == "already_registered" -> {
+                                                        errorMessage = "Bu Google akkaunt allaqachon ro'yxatdan o'tgan. Iltimos, login qiling."
                                                         isLoading = false
                                                     }
-                                                    location.contains("error=not_registered") -> {
-                                                        errorMessage = "No account found. Please register first."
+                                                    response.error == "not_registered" -> {
+                                                        errorMessage = "Akkaunt topilmadi. Iltimos, avval ro'yxatdan o'ting."
                                                         isLoading = false
                                                     }
                                                     else -> {
-                                                        errorMessage = "Authentication failed. Please try again."
+                                                        errorMessage = "Autentifikatsiya muvaffaqiyatsiz. Qayta urinib ko'ring."
                                                         isLoading = false
                                                     }
                                                 }
                                             } catch (e: Exception) {
-                                                errorMessage = "Error: ${e.message}"
+                                                errorMessage = "Xatolik: ${e.message}"
                                                 isLoading = false
                                             }
                                         }
-                                        return true // Prevent WebView from following the redirect
+                                        return true
                                     }
                                 }
                                 return false

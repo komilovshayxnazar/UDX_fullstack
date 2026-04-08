@@ -1,5 +1,4 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.responses import RedirectResponse
 from fastapi.security import OAuth2PasswordRequestForm
 import httpx
 from datetime import timedelta
@@ -14,9 +13,10 @@ import schemas
 from core.security import verify_password, create_access_token, ACCESS_TOKEN_EXPIRE_MINUTES
 from telegram_bot import send_otp, get_chat_id
 
-# In-memory OTP store: { telegram_username -> (code, expires_at) }
-_otp_store: dict[str, tuple[str, float]] = {}
+# In-memory OTP store: { telegram_username -> (code, expires_at, attempts) }
+_otp_store: dict[str, tuple[str, float, int]] = {}
 OTP_TTL_SECONDS = 300  # 5 minutes
+OTP_MAX_ATTEMPTS = 5
 
 VERIFIED_SESSIONS_FILE = "verified_sessions.json"
 VERIFIED_TTL_SECONDS = 600  # 10 minutes to complete registration
@@ -60,10 +60,23 @@ if not GOOGLE_CLIENT_ID or not GOOGLE_CLIENT_SECRET or not GOOGLE_REDIRECT_URI:
     # but any attempt to use Google login will fail naturally or we could raise an error during the request.
     print("WARNING: Google OAuth environment variables are not fully configured.")
 
+def _normalize_phone(raw: str) -> str:
+    """Strip spaces/dashes, ensure leading + for digit-only strings."""
+    phone = raw.strip().replace(" ", "").replace("-", "")
+    if phone.isdigit():
+        phone = "+" + phone
+    return phone
+
+
 @router.post("/token", response_model=schemas.Token)
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
-    user = await models.User.find_one(models.User.phone == form_data.username)
+    phone = _normalize_phone(form_data.username)
+    import logging
+    logging.warning(f"[LOGIN] raw='{form_data.username}' normalized='{phone}' pwd_len={len(form_data.password)}")
+    user = await models.User.find_one(models.User.phone == phone)
+    logging.warning(f"[LOGIN] user_found={user is not None}")
     if not user or not verify_password(form_data.password, user.hashed_password):
+        logging.warning(f"[LOGIN] FAILED - user={'None' if not user else 'found'}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
@@ -137,9 +150,8 @@ async def google_callback(code: str, state: str = None):
     
     if state == "register":
         if user:
-            frontend_url = "http://localhost:3000/login?error=already_registered"
-            return RedirectResponse(url=frontend_url)
-        
+            return {"error": "already_registered"}
+
         user = models.User(
             phone=f"google_{google_id}",
             hashed_password=None,
@@ -148,27 +160,22 @@ async def google_callback(code: str, state: str = None):
             avatar=user_info.get("picture")
         )
         await user.insert()
-        
-        access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+
         app_access_token = create_access_token(
-            data={"sub": user.phone}, expires_delta=access_token_expires
+            data={"sub": user.phone},
+            expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
         )
-        
-        frontend_url = f"http://localhost:3000/auth/callback?token={app_access_token}&registered=true"
-        return RedirectResponse(url=frontend_url)
-    
+        return {"token": app_access_token, "registered": True}
+
     else:
         if not user:
-            frontend_url = "http://localhost:3000/register?error=not_registered&provider=google"
-            return RedirectResponse(url=frontend_url)
-        
-        access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+            return {"error": "not_registered"}
+
         app_access_token = create_access_token(
-            data={"sub": user.phone}, expires_delta=access_token_expires
+            data={"sub": user.phone},
+            expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
         )
-        
-        frontend_url = f"http://localhost:3000/auth/callback?token={app_access_token}"
-        return RedirectResponse(url=frontend_url)
+        return {"token": app_access_token, "registered": False}
 
 
 @router.post("/auth/otp/request")
@@ -186,7 +193,7 @@ async def request_telegram_otp(body: schemas.TelegramOtpRequest):
         )
 
     code = str(random.randint(100000, 999999))
-    _otp_store[username] = (code, time.time() + OTP_TTL_SECONDS)
+    _otp_store[username] = (code, time.time() + OTP_TTL_SECONDS, 0)
 
     sent = await send_otp(username, code)
     if not sent:
@@ -207,12 +214,17 @@ async def verify_telegram_otp(body: schemas.TelegramOtpVerify):
     if not entry:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No OTP found. Please request a new code.")
 
-    code, expires_at = entry
+    code, expires_at, attempts = entry
     if time.time() > expires_at:
         _otp_store.pop(username, None)
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="OTP has expired. Please request a new code.")
 
+    if attempts >= OTP_MAX_ATTEMPTS:
+        _otp_store.pop(username, None)
+        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="Too many failed attempts. Please request a new code.")
+
     if body.code != code:
+        _otp_store[username] = (code, expires_at, attempts + 1)
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid OTP code.")
 
     # Consume the OTP so it can't be reused

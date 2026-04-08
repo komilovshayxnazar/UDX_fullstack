@@ -52,6 +52,15 @@ class ProductBase(BaseModel):
 class ProductCreate(ProductBase):
     pass
 
+class SellerPublic(MongoBase):
+    id: str
+    name: Optional[str] = None
+    avatar: Optional[str] = None
+    rating: float = 0.0
+    review_count: int = 0
+    is_online: bool = False
+    is_verified: bool = False   # True if seller has TIN registered
+
 class Product(MongoBase, ProductBase):
     id: str
     seller_id: str
@@ -60,6 +69,7 @@ class Product(MongoBase, ProductBase):
     views: int
     sales: int
     distance: Optional[float] = None
+    seller: Optional[SellerPublic] = None
 
 class PriceHistoryBase(BaseModel):
     price: float
@@ -118,6 +128,7 @@ class User(MongoBase, UserBase):
     id: str
     avatar: Optional[str] = None
     is_active: bool
+    is_public: bool = True
     balance: float = 0.0
     rating: float = 0.0
 
@@ -125,6 +136,7 @@ class UserUpdate(BaseModel):
     name: Optional[str] = None
     avatar: Optional[str] = None
     description: Optional[str] = None
+    is_public: Optional[bool] = None
 
 class RoleUpdate(BaseModel):
     role: UserRole
@@ -272,6 +284,77 @@ class ContractStatus(str, enum.Enum):
     pending = "pending"
     completed = "completed"
     cancelled = "cancelled"
+
+class PublicUserProfile(MongoBase):
+    id: str
+    name: Optional[str] = None
+    avatar: Optional[str] = None
+    description: Optional[str] = None
+    rating: float = 0.0
+    review_count: int = 0
+    is_online: bool = False
+    is_verified: bool = False
+    created_at: datetime
+    total_orders: int = 0
+    successful_orders: int = 0
+    unsuccessful_orders: int = 0
+    in_progress_orders: int = 0
+    reviews: List["ReviewOut"] = []
+
+
+class ReviewCreate(BaseModel):
+    seller_id: str
+    order_id: str
+    product_id: Optional[str] = None
+    rating: int
+    comment: str
+
+    @field_validator('rating')
+    @classmethod
+    def validate_rating(cls, v: int) -> int:
+        if v < 1 or v > 5:
+            raise ValueError('Rating must be between 1 and 5')
+        return v
+
+    @field_validator('comment')
+    @classmethod
+    def validate_comment(cls, v: str) -> str:
+        v = v.strip()
+        if len(v) < 10:
+            raise ValueError('Comment must be at least 10 characters')
+        if len(v) > 1000:
+            raise ValueError('Comment must be at most 1000 characters')
+        return v
+
+
+class ReviewOut(MongoBase):
+    id: str
+    reviewer_id: str
+    reviewer_name: Optional[str] = None
+    seller_id: str
+    product_id: Optional[str] = None
+    order_id: str
+    rating: int
+    comment: str
+    is_verified_purchase: bool
+    created_at: datetime
+
+
+class FraudReportCreate(BaseModel):
+    target_user_id: Optional[str] = None
+    target_product_id: Optional[str] = None
+    reason: str
+
+    @field_validator('reason')
+    @classmethod
+    def validate_reason(cls, v: str) -> str:
+        v = v.strip()
+        if len(v) < 10:
+            raise ValueError('Reason must be at least 10 characters')
+        if len(v) > 500:
+            raise ValueError('Reason must be at most 500 characters')
+        return v
+
 
 class ContractCreate(BaseModel):
     buyer_id: str

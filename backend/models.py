@@ -72,6 +72,7 @@ class User(Document):
     avatar: Optional[str] = None
     is_active: bool = True
     is_2fa_enabled: bool = False
+    is_public: bool = True
     balance: float = 0.0
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     payment_cards: List[PaymentCard] = []
@@ -221,6 +222,46 @@ class ProductInteraction(Document):
         indexes = [
             IndexModel([("user_id", pymongo.ASCENDING)]),
             IndexModel([("product_id", pymongo.ASCENDING)])
+        ]
+
+
+class Review(Document):
+    """
+    Faqat tasdiqlangan xaridor (completed order) qoldira oladi.
+    Har bir order uchun faqat 1 ta sharh — unique index orqali.
+    """
+    reviewer_id: str
+    seller_id: str
+    order_id: str                          # completed order — unique constraint
+    product_id: Optional[str] = None
+    rating: int                            # 1–5
+    comment: str
+    is_verified_purchase: bool = True
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+    class Settings:
+        name = "reviews"
+        indexes = [
+            IndexModel([("seller_id", pymongo.ASCENDING)]),
+            IndexModel([("reviewer_id", pymongo.ASCENDING)]),
+            IndexModel([("order_id", pymongo.ASCENDING)], unique=True),
+        ]
+
+
+class FraudReport(Document):
+    """Foydalanuvchi yoki mahsulotni shikoyat qilish."""
+    reporter_id: str
+    target_user_id: Optional[str] = None
+    target_product_id: Optional[str] = None
+    reason: str
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+    class Settings:
+        name = "fraud_reports"
+        indexes = [
+            IndexModel([("reporter_id", pymongo.ASCENDING)]),
+            IndexModel([("target_user_id", pymongo.ASCENDING)]),
+            IndexModel([("target_product_id", pymongo.ASCENDING)]),
         ]
 
 

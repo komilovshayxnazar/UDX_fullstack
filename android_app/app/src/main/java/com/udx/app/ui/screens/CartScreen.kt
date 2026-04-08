@@ -19,8 +19,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.udx.app.data.NetworkModule
+import com.udx.app.data.OrderCreate
+import com.udx.app.data.OrderItemCreate
 import com.udx.app.ui.viewmodels.CartItem
 import com.udx.app.ui.viewmodels.CartViewModel
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -29,7 +33,116 @@ fun CartScreen(
     onBack: () -> Unit
 ) {
     val cartItems by viewModel.cartItems.collectAsState()
-    val totalPrice = viewModel.getTotalPrice()
+    val totalPrice by remember { derivedStateOf { cartItems.sumOf { it.product.price * it.quantity } } }
+    val scope = rememberCoroutineScope()
+
+    var showCheckoutDialog by remember { mutableStateOf(false) }
+    var deliveryMethod by remember { mutableStateOf("courier") }
+    var isPlacingOrder by remember { mutableStateOf(false) }
+    var orderError by remember { mutableStateOf<String?>(null) }
+    var orderSuccess by remember { mutableStateOf(false) }
+
+    // Sotuvchi bo'yicha guruhlar (backend har buyurtmada bir sotuvchi talab qiladi)
+    val sellerGroups by remember { derivedStateOf {
+        cartItems.groupBy { it.product.sellerId }
+    }}
+
+    if (orderSuccess) {
+        AlertDialog(
+            onDismissRequest = { orderSuccess = false },
+            icon = { Text("✅", style = MaterialTheme.typography.headlineMedium) },
+            title = { Text("Buyurtma qabul qilindi!") },
+            text = { Text("Buyurtmangiz muvaffaqiyatli joylashtirildi. Sotuvchi siz bilan bog'lanadi.") },
+            confirmButton = {
+                Button(onClick = { orderSuccess = false; onBack() },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF9C27B0))) {
+                    Text("Tamom", color = Color.White)
+                }
+            }
+        )
+    }
+
+    if (showCheckoutDialog) {
+        AlertDialog(
+            onDismissRequest = { if (!isPlacingOrder) showCheckoutDialog = false },
+            title = { Text("Buyurtmani tasdiqlash") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    cartItems.forEach { item ->
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("${item.product.name} x${item.quantity}", style = MaterialTheme.typography.bodyMedium)
+                            Text("$${String.format("%.2f", item.product.price * item.quantity)}", style = MaterialTheme.typography.bodyMedium)
+                        }
+                    }
+                    Divider()
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("Jami:", fontWeight = FontWeight.Bold)
+                        Text("$${String.format("%.2f", totalPrice)}", fontWeight = FontWeight.Bold, color = Color(0xFF9C27B0))
+                    }
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text("Yetkazib berish usuli:", style = MaterialTheme.typography.labelLarge)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        RadioButton(selected = deliveryMethod == "courier", onClick = { deliveryMethod = "courier" })
+                        Text("Kuryer")
+                        Spacer(modifier = Modifier.width(16.dp))
+                        RadioButton(selected = deliveryMethod == "pickup", onClick = { deliveryMethod = "pickup" })
+                        Text("O'zi olib ketish")
+                    }
+                    if (sellerGroups.size > 1) {
+                        Text(
+                            "⚠️ Savatingizda ${sellerGroups.size} ta sotuvchidan mahsulot bor. ${sellerGroups.size} ta alohida buyurtma yaratiladi.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                    orderError?.let {
+                        Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        orderError = null
+                        isPlacingOrder = true
+                        scope.launch {
+                            try {
+                                // Har bir sotuvchi uchun alohida buyurtma
+                                sellerGroups.values.forEach { items ->
+                                    NetworkModule.apiService.createOrder(
+                                        OrderCreate(
+                                            items = items.map { OrderItemCreate(it.product.id, it.quantity) },
+                                            deliveryMethod = deliveryMethod
+                                        )
+                                    )
+                                }
+                                viewModel.clearCart()
+                                showCheckoutDialog = false
+                                orderSuccess = true
+                            } catch (e: Exception) {
+                                orderError = "Xatolik: ${e.message?.take(80)}"
+                            } finally {
+                                isPlacingOrder = false
+                            }
+                        }
+                    },
+                    enabled = !isPlacingOrder,
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF9C27B0))
+                ) {
+                    if (isPlacingOrder) {
+                        CircularProgressIndicator(modifier = Modifier.size(16.dp), color = Color.White, strokeWidth = 2.dp)
+                    } else {
+                        Text("Tasdiqlash", color = Color.White)
+                    }
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showCheckoutDialog = false }, enabled = !isPlacingOrder) {
+                    Text("Bekor")
+                }
+            }
+        )
+    }
 
     Scaffold(
         topBar = {
@@ -68,7 +181,7 @@ fun CartScreen(
                         }
                         Spacer(modifier = Modifier.height(16.dp))
                         Button(
-                            onClick = { /* Checkout Logic */ },
+                            onClick = { showCheckoutDialog = true },
                             modifier = Modifier.fillMaxWidth(),
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF9C27B0))
                         ) {
@@ -91,10 +204,10 @@ fun CartScreen(
                         Icons.Default.ShoppingCart,
                         contentDescription = null,
                         modifier = Modifier.size(100.dp),
-                        tint = Color.Gray.copy(alpha = 0.5f)
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                     )
                     Spacer(modifier = Modifier.height(16.dp))
-                    Text("Your cart is empty", color = Color.Gray, fontSize = 18.sp)
+                    Text("Your cart is empty", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 18.sp)
                     Spacer(modifier = Modifier.height(24.dp))
                     Button(onClick = onBack) {
                         Text("Go Shopping")
@@ -129,7 +242,7 @@ fun CartItemRow(
 ) {
     Card(
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Row(
             modifier = Modifier

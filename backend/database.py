@@ -39,7 +39,9 @@ async def init_db():
             models.ProductInteraction,
             models.Transaction,
             models.IdempotencyKey,
-            models.AuditLog
+            models.AuditLog,
+            models.Review,
+            models.FraudReport,
         ])
         
         return client, db

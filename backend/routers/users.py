@@ -5,7 +5,7 @@ import models
 import schemas
 from core.dependencies import get_current_user
 from core.security import get_password_hash, verify_password
-from routers.auth import consume_verified_session
+from routers.auth import consume_verified_session, _normalize_phone
 from services import wallet_service, payment_service
 from services.audit_service import log as audit_log
 
@@ -21,12 +21,13 @@ async def create_user(user: schemas.UserCreate):
                 detail="Telegram OTP not verified. Please complete the verification step first."
             )
 
-    db_user = await models.User.find_one(models.User.phone == user.phone)
+    normalized_phone = _normalize_phone(user.phone)
+    db_user = await models.User.find_one(models.User.phone == normalized_phone)
     if db_user:
         raise HTTPException(status_code=400, detail="Phone already registered")
     hashed_password = get_password_hash(user.password)
     new_user = models.User(
-        phone=user.phone,
+        phone=normalized_phone,
         hashed_password=hashed_password,
         role=user.role,
         name=user.name,
@@ -39,6 +40,56 @@ async def create_user(user: schemas.UserCreate):
 async def read_users_me(current_user: models.User = Depends(get_current_user)):
     return current_user
 
+
+@router.get("/{user_id}/public", response_model=schemas.PublicUserProfile)
+async def get_public_profile(user_id: str):
+    user = await models.User.get(user_id)
+    if not user or not user.is_public:
+        raise HTTPException(status_code=404, detail="User not found or profile is private")
+
+    # Savdo statistikasi
+    orders = await models.Order.find(models.Order.seller_id == user_id).to_list()
+    total_orders   = len(orders)
+    successful     = sum(1 for o in orders if o.status == models.OrderStatus.completed)
+    unsuccessful   = sum(1 for o in orders if o.status == models.OrderStatus.cancelled)
+    in_progress    = total_orders - successful - unsuccessful
+
+    # Sharhlar (oxirgi 20 ta)
+    reviews = await (
+        models.Review.find(models.Review.seller_id == user_id)
+        .sort("-created_at").limit(20).to_list()
+    )
+    reviewer_ids = list({r.reviewer_id for r in reviews})
+    reviewers = {}
+    if reviewer_ids:
+        from beanie import PydanticObjectId
+        from beanie.operators import In
+        docs = await models.User.find(
+            In(models.User.id, [PydanticObjectId(rid) for rid in reviewer_ids if PydanticObjectId.is_valid(rid)])
+        ).to_list()
+        reviewers = {str(d.id): d.name for d in docs}
+
+    reviews_out = [
+        schemas.ReviewOut(
+            id=str(r.id), reviewer_id=r.reviewer_id,
+            reviewer_name=reviewers.get(r.reviewer_id),
+            seller_id=r.seller_id, product_id=r.product_id,
+            order_id=r.order_id, rating=r.rating, comment=r.comment,
+            is_verified_purchase=r.is_verified_purchase, created_at=r.created_at
+        ) for r in reviews
+    ]
+
+    return schemas.PublicUserProfile(
+        id=str(user.id), name=user.name, avatar=user.avatar,
+        description=user.description, rating=user.rating,
+        review_count=user.review_count, is_online=user.is_online,
+        is_verified=bool(user.tin),
+        created_at=user.created_at,
+        total_orders=total_orders, successful_orders=successful,
+        unsuccessful_orders=unsuccessful, in_progress_orders=in_progress,
+        reviews=reviews_out
+    )
+
 @router.put("/me", response_model=schemas.User)
 async def update_user_me(
     user_update: schemas.UserUpdate,
@@ -50,6 +101,8 @@ async def update_user_me(
         current_user.avatar = user_update.avatar
     if user_update.description is not None:
         current_user.description = user_update.description
+    if user_update.is_public is not None:
+        current_user.is_public = user_update.is_public
         
     await current_user.save()
     return current_user
@@ -93,6 +146,9 @@ async def update_role_me(
     role_update: schemas.RoleUpdate,
     current_user: models.User = Depends(get_current_user)
 ):
+    allowed_roles = {models.UserRole.buyer, models.UserRole.seller}
+    if role_update.role not in allowed_roles:
+        raise HTTPException(status_code=403, detail="Cannot assign this role")
     current_user.role = role_update.role
     await current_user.save()
     return current_user

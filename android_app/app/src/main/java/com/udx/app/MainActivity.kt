@@ -19,9 +19,13 @@ import android.content.Context
 import com.udx.app.data.NetworkModule
 import com.udx.app.data.TokenManager
 import com.udx.app.ui.screens.*
+import com.udx.app.ui.theme.LocalThemeState
+import com.udx.app.ui.theme.ThemeState
 import com.udx.app.ui.theme.UDXTheme
 import com.udx.app.utils.LocaleHelper
+import com.udx.app.utils.ThemePreference
 import com.udx.app.ui.viewmodels.CartViewModel
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.launch
 
@@ -35,12 +39,24 @@ class MainActivity : ComponentActivity() {
         TokenManager.init(this)
 
         setContent {
-            UDXTheme {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
-                ) {
-                    AppNavigation()
+            var isDark by remember { mutableStateOf(ThemePreference.isDarkMode(this)) }
+
+            val themeState = ThemeState(
+                isDark = isDark,
+                toggle = {
+                    isDark = !isDark
+                    ThemePreference.setDarkMode(this, isDark)
+                }
+            )
+
+            CompositionLocalProvider(LocalThemeState provides themeState) {
+                UDXTheme(darkTheme = isDark) {
+                    Surface(
+                        modifier = Modifier.fillMaxSize(),
+                        color = MaterialTheme.colorScheme.background
+                    ) {
+                        AppNavigation()
+                    }
                 }
             }
         }
@@ -62,6 +78,7 @@ fun MainAppScaffold(
     onNavigateToChat: () -> Unit,
     onNavigateToCart: () -> Unit,
     onNavigateToCategory: (String, String) -> Unit,
+    onNavigateToSeller: (String) -> Unit = {},
     cartViewModel: CartViewModel,
     initialRole: String = "buyer"
 ) {
@@ -108,37 +125,6 @@ fun MainAppScaffold(
                             )
                         )
                     }
-                    // Mode switch tugmasi
-                    NavigationBarItem(
-                        icon = {
-                            Icon(
-                                if (isSeller) Icons.Default.ShoppingCart else Icons.Default.Store,
-                                contentDescription = if (isSeller) "Buyer mode" else "Seller mode"
-                            )
-                        },
-                        label = {
-                            Text(
-                                if (isSeller) "Buyer" else "Seller",
-                                fontSize = 10.sp, maxLines = 1, softWrap = false
-                            )
-                        },
-                        selected = false,
-                        onClick = {
-                            val newRole = if (isSeller) "buyer" else "seller"
-                            currentMode = newRole
-                            selectedTab = MainTab.Dashboard
-                            scope.launch {
-                                try {
-                                    NetworkModule.apiService.updateRole(com.udx.app.data.RoleUpdate(newRole))
-                                } catch (_: Exception) {}
-                            }
-                        },
-                        colors = NavigationBarItemDefaults.colors(
-                            unselectedIconColor = Color(0xFF4CAF50),
-                            unselectedTextColor = Color(0xFF4CAF50),
-                            indicatorColor = Color.Transparent
-                        )
-                    )
                 }
             }
         ) { paddingValues ->
@@ -152,7 +138,19 @@ fun MainAppScaffold(
                         onNavigateToSettings = { selectedTab = MainTab.Profile },
                         onNavigateToCategory = onNavigateToCategory,
                         onAddToCart = { cartViewModel.addToCart(it) },
-                        cartItemCount = count
+                        onNavigateToSeller = onNavigateToSeller,
+                        cartItemCount = count,
+                        isSeller = isSeller,
+                        onSwitchRole = {
+                            val newRole = if (isSeller) "buyer" else "seller"
+                            currentMode = newRole
+                            selectedTab = MainTab.Dashboard
+                            scope.launch {
+                                try {
+                                    NetworkModule.apiService.updateRole(com.udx.app.data.RoleUpdate(newRole))
+                                } catch (_: Exception) {}
+                            }
+                        }
                     )
                     MainTab.Add -> { /* onClick da handle qilinadi */ }
                     MainTab.Contracts -> ContractsScreen(onBack = { selectedTab = MainTab.Dashboard })
@@ -170,6 +168,7 @@ fun AppNavigation() {
     var googleAuthUrl by remember { mutableStateOf("") }
     var selectedCategoryId by remember { mutableStateOf("") }
     var selectedCategoryName by remember { mutableStateOf("") }
+    var selectedSellerId by remember { mutableStateOf("") }
     var userRole by remember { mutableStateOf("buyer") }
     val cartViewModel: CartViewModel = viewModel()
 
@@ -238,6 +237,10 @@ fun AppNavigation() {
                 selectedCategoryName = name
                 currentScreen = "category"
             },
+            onNavigateToSeller = { id ->
+                selectedSellerId = id
+                currentScreen = "seller_profile"
+            },
             cartViewModel = cartViewModel,
             initialRole = userRole
         )
@@ -246,6 +249,10 @@ fun AppNavigation() {
             categoryName = selectedCategoryName,
             onBack = { currentScreen = "main" },
             onAddToCart = { cartViewModel.addToCart(it) }
+        )
+        "seller_profile" -> SellerProfileScreen(
+            sellerId = selectedSellerId,
+            onBack = { currentScreen = "main" }
         )
         "chat" -> ChatScreen(onBack = { currentScreen = "main" })
         "cart" -> CartScreen(

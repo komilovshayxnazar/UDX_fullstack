@@ -22,7 +22,8 @@ interface ApiService {
     @GET("products/")
     suspend fun getProducts(
         @retrofit2.http.Query("is_b2b") isB2b: Boolean? = null,
-        @retrofit2.http.Query("category_id") categoryId: String? = null
+        @retrofit2.http.Query("category_id") categoryId: String? = null,
+        @retrofit2.http.Query("q") query: String? = null
     ): List<ProductRemote>
 
     @GET("categories/")
@@ -47,7 +48,7 @@ interface ApiService {
     suspend fun handleGoogleCallback(
         @retrofit2.http.Query("code") code: String,
         @retrofit2.http.Query("state") state: String?
-    ): retrofit2.Response<Void>
+    ): GoogleCallbackResponse
 
     @GET("users/me")
     suspend fun getMe(): User
@@ -114,4 +115,38 @@ interface ApiService {
 
     @GET("products/recommendations/")
     suspend fun getRecommendations(@retrofit2.http.Query("limit") limit: Int = 10): List<ProductRemote>
+
+    @POST("orders/")
+    suspend fun createOrder(@Body order: OrderCreate): OrderOut
+
+    @GET("orders/")
+    suspend fun getOrders(): List<OrderOut>
+
+    @GET("users/{userId}/public")
+    suspend fun getPublicProfile(@retrofit2.http.Path("userId") userId: String): PublicUserProfile
+
+    @POST("reviews/")
+    suspend fun createReview(@Body review: ReviewCreate): ReviewRemote
+
+    @GET("reviews/seller/{sellerId}")
+    suspend fun getSellerReviews(
+        @retrofit2.http.Path("sellerId") sellerId: String,
+        @retrofit2.http.Query("skip") skip: Int = 0,
+        @retrofit2.http.Query("limit") limit: Int = 20
+    ): List<ReviewRemote>
+
+    @POST("fraud-reports/")
+    suspend fun reportFraud(@Body report: FraudReportCreate): MessageResponse
+
+    @GET("chats/")
+    suspend fun getChats(): List<ChatRemote>
+
+    @GET("chats/{chatId}/messages")
+    suspend fun getChatMessages(@retrofit2.http.Path("chatId") chatId: String): List<MessageRemote>
+
+    @POST("chats/{chatId}/messages")
+    suspend fun sendMessage(
+        @retrofit2.http.Path("chatId") chatId: String,
+        @retrofit2.http.Query("message_text") text: String
+    ): MessageRemote
 }
