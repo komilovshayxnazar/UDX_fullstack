@@ -11,6 +11,7 @@ import json
 import models
 import schemas
 from core.security import verify_password, create_access_token, ACCESS_TOKEN_EXPIRE_MINUTES
+from core.encryption import encrypt, decrypt, hmac_hash
 from telegram_bot import send_otp, get_chat_id
 
 # In-memory OTP store: { telegram_username -> (code, expires_at, attempts) }
@@ -71,20 +72,17 @@ def _normalize_phone(raw: str) -> str:
 @router.post("/token", response_model=schemas.Token)
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
     phone = _normalize_phone(form_data.username)
-    import logging
-    logging.warning(f"[LOGIN] raw='{form_data.username}' normalized='{phone}' pwd_len={len(form_data.password)}")
-    user = await models.User.find_one(models.User.phone == phone)
-    logging.warning(f"[LOGIN] user_found={user is not None}")
+    ph    = hmac_hash(phone)
+    user  = await models.User.find_one(models.User.phone_hash == ph)
     if not user or not verify_password(form_data.password, user.hashed_password):
-        logging.warning(f"[LOGIN] FAILED - user={'None' if not user else 'found'}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": user.phone}, expires_delta=access_token_expires
+        data={"sub": ph},   # JWT sub = phone_hash
+        expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     )
     return {"access_token": access_token, "token_type": "bearer"}
 
@@ -152,8 +150,11 @@ async def google_callback(code: str, state: str = None):
         if user:
             return {"error": "already_registered"}
 
+        raw_phone = f"google_{google_id}"
+        ph = hmac_hash(raw_phone)
         user = models.User(
-            phone=f"google_{google_id}",
+            phone=encrypt(raw_phone),
+            phone_hash=ph,
             hashed_password=None,
             role=models.UserRole.buyer,
             name=name or email,
@@ -162,7 +163,7 @@ async def google_callback(code: str, state: str = None):
         await user.insert()
 
         app_access_token = create_access_token(
-            data={"sub": user.phone},
+            data={"sub": ph},
             expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
         )
         return {"token": app_access_token, "registered": True}
@@ -172,7 +173,7 @@ async def google_callback(code: str, state: str = None):
             return {"error": "not_registered"}
 
         app_access_token = create_access_token(
-            data={"sub": user.phone},
+            data={"sub": user.phone_hash},
             expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
         )
         return {"token": app_access_token, "registered": False}
@@ -185,6 +186,7 @@ async def request_telegram_otp(body: schemas.TelegramOtpRequest):
     The user must have already sent /start to the UDX bot.
     """
     username = body.telegram_username.lower().lstrip("@")
+    username_h = hmac_hash(username)
 
     if not get_chat_id(username):
         raise HTTPException(

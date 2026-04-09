@@ -19,6 +19,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -27,6 +28,7 @@ import com.udx.app.R
 import com.udx.app.data.NetworkModule
 import com.udx.app.data.ProductRemote
 import com.udx.app.data.InteractionRequest
+import com.udx.app.utils.LocaleHelper
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -44,6 +46,7 @@ fun DashboardScreen(
     isSeller: Boolean = false,
     onSwitchRole: () -> Unit = {}
 ) {
+    val context = LocalContext.current
     var searchQuery by remember { mutableStateOf("") }
     var categories by remember { mutableStateOf<List<com.udx.app.data.Category>>(emptyList()) }
     var selectedCategoryId by remember { mutableStateOf<String?>(null) }
@@ -52,6 +55,17 @@ fun DashboardScreen(
     var products by remember { mutableStateOf<List<ProductRemote>>(emptyList()) }
     var isLoadingProducts by remember { mutableStateOf(true) }
     val scope = rememberCoroutineScope()
+    var showLanguageDialog by remember { mutableStateOf(false) }
+    var currentLanguage by remember { mutableStateOf(LocaleHelper.getLanguage(context)) }
+
+    val languages = listOf(
+        "uz" to "O'zbek",
+        "ru" to "Русский",
+        "en" to "English",
+        "kk" to "Қазақша",
+        "ky" to "Кыргызча",
+        "tg" to "Тоҷикӣ"
+    )
 
     LaunchedEffect(Unit) {
         try {
@@ -166,7 +180,19 @@ fun DashboardScreen(
                         ) {
                             Icon(Icons.Outlined.Email, "Messages", tint = Color.White)
                         }
-                        Icon(Icons.Outlined.Info, "Language", tint = Color.White, modifier = Modifier.clickable { })
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = Color.White.copy(alpha = 0.2f),
+                            modifier = Modifier.clickable { showLanguageDialog = true }
+                        ) {
+                            Text(
+                                text = currentLanguage.uppercase(),
+                                color = Color.White,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp)
+                            )
+                        }
                         Icon(Icons.Outlined.Settings, "Settings", tint = Color.White, modifier = Modifier.clickable { onNavigateToSettings() })
                         Icon(Icons.Outlined.CheckCircle, "Favorites", tint = Color.White, modifier = Modifier.clickable { })
                         BadgedBox(
@@ -361,6 +387,49 @@ fun DashboardScreen(
                 }
             }
         }
+    }
+
+    if (showLanguageDialog) {
+        AlertDialog(
+            onDismissRequest = { showLanguageDialog = false },
+            title = { Text("Til tanlash", fontWeight = FontWeight.Bold) },
+            text = {
+                Column {
+                    languages.forEach { (code, label) ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    LocaleHelper.setLocale(context, code)
+                                    currentLanguage = code
+                                    showLanguageDialog = false
+                                }
+                                .padding(vertical = 12.dp, horizontal = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(label, fontSize = 16.sp)
+                            if (currentLanguage == code) {
+                                Icon(
+                                    Icons.Default.CheckCircle,
+                                    contentDescription = null,
+                                    tint = Color(0xFF9C27B0),
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+                        if (code != languages.last().first) {
+                            Divider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showLanguageDialog = false }) {
+                    Text("Yopish")
+                }
+            }
+        )
     }
 }
 

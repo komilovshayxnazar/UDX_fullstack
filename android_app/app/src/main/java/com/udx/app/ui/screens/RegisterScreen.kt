@@ -149,9 +149,14 @@ fun RegisterScreen(
 
                                 OutlinedTextField(
                                     value = phoneNumber,
-                                    onValueChange = { phoneNumber = it },
+                                    onValueChange = { input ->
+                                        val filtered = input.filter { it.isDigit() || it == '+' || it == ' ' || it == '-' }
+                                        val clean = if (filtered.startsWith("+")) filtered else filtered.replace("+", "")
+                                        phoneNumber = clean
+                                    },
                                     label = { Text(stringResource(R.string.phone_number)) },
                                     leadingIcon = { Icon(Icons.Filled.Phone, contentDescription = "Phone") },
+                                    placeholder = { Text("+998 90 123 45 67") },
                                     modifier = Modifier.fillMaxWidth(),
                                     singleLine = true,
                                     shape = RoundedCornerShape(12.dp),

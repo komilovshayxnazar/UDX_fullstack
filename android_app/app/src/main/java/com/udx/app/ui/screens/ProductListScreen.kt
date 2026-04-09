@@ -28,6 +28,7 @@ import com.udx.app.data.NetworkModule
 import com.udx.app.data.ProductRemote
 import com.udx.app.data.InteractionRequest
 import com.udx.app.data.FraudReportCreate
+import com.udx.app.utils.CurrencyFormatter
 import kotlinx.coroutines.launch
 import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -331,7 +332,7 @@ fun TrendCard(product: ProductRemote, onClick: () -> Unit = {}, onAddToCart: () 
             }
             Column(modifier = Modifier.padding(8.dp)) {
                 Text(product.name, style = MaterialTheme.typography.bodyMedium, maxLines = 1, fontWeight = FontWeight.Bold)
-                Text("$${product.price}", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                Text(CurrencyFormatter.formatUzs(product.price), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
             }
         }
     }
@@ -414,7 +415,7 @@ fun ProductCard(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(product.name, style = MaterialTheme.typography.titleMedium)
                     Text(
-                        "$${product.price} / ${product.unit}",
+                        "${CurrencyFormatter.formatUzs(product.price)} / ${product.unit}",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.secondary
                     )

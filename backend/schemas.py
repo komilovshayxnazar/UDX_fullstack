@@ -1,8 +1,27 @@
 from pydantic import BaseModel, field_validator
-from typing import Any, List, Optional
+from typing import Any, List, Optional, TYPE_CHECKING
 from datetime import datetime
 import enum
 import re
+
+if TYPE_CHECKING:
+    import models as _models
+
+
+def user_to_schema(user: "_models.User") -> "User":
+    """models.User → schemas.User (shifrlangan maydonlarni ochib beradi)."""
+    from core.encryption import decrypt
+    return User(
+        id=str(user.id),
+        phone=decrypt(user.phone) if user.phone else "",
+        name=user.name,
+        role=user.role.value,
+        avatar=user.avatar,
+        is_active=user.is_active,
+        is_public=user.is_public,
+        balance=user.balance,
+        rating=user.rating,
+    )
 
 class MongoBase(BaseModel):
     """Barcha response schemalari uchun base class — ObjectId ni str ga o'giradi."""

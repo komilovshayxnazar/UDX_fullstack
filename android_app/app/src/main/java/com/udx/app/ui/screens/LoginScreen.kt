@@ -16,7 +16,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.udx.app.R
@@ -83,11 +85,19 @@ fun LoginScreen(
 
                 OutlinedTextField(
                     value = phoneNumber,
-                    onValueChange = { phoneNumber = it },
+                    onValueChange = { input ->
+                        // Faqat +, raqamlar va bo'sh joy/defis
+                        val filtered = input.filter { it.isDigit() || it == '+' || it == ' ' || it == '-' }
+                        // + faqat boshida bo'lsin
+                        val clean = if (filtered.startsWith("+")) filtered else filtered.replace("+", "")
+                        phoneNumber = clean
+                    },
                     label = { Text(stringResource(R.string.phone_number)) },
                     leadingIcon = {
                         Icon(Icons.Filled.Phone, contentDescription = "Phone")
                     },
+                    placeholder = { Text("+998 90 123 45 67") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     shape = RoundedCornerShape(12.dp)
@@ -130,6 +140,10 @@ fun LoginScreen(
                                     password = password
                                 )
                                 TokenManager.saveToken(response.accessToken)
+                                try {
+                                    val me = NetworkModule.apiService.getMe()
+                                    TokenManager.saveMyId(me.id)
+                                } catch (_: Exception) {}
                                 isLoading = false
                                 onLoginSuccess()
                             } catch (e: Exception) {

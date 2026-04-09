@@ -132,12 +132,27 @@ async def read_product(product_id: str):
     return product
 
 @router.post("/products/interactions/")
-async def record_interaction(interaction: schemas.ProductInteractionCreate, current_user: models.User = Depends(get_current_user)):
+async def record_interaction(
+    interaction: schemas.ProductInteractionCreate,
+    current_user: models.User = Depends(get_current_user)
+):
     new_interaction = models.ProductInteraction(
         user_id=str(current_user.id),
         **interaction.model_dump()
     )
     await new_interaction.insert()
+
+    # Mirror to Neo4j graph for collaborative filtering (silent if Neo4j is down)
+    import asyncio
+    from core import neo4j_db as _neo4j
+    await asyncio.get_event_loop().run_in_executor(
+        None,
+        lambda: _neo4j.record_interaction(
+            str(current_user.id),
+            interaction.product_id,
+            interaction.interaction_type.value,
+        ),
+    )
     return {"status": "ok"}
 
 @router.get("/products/recommendations/", response_model=List[schemas.Product])
@@ -147,7 +162,7 @@ async def get_recommendations(limit: int = 10, current_user: models.User = Depen
         from beanie.operators import In
         from beanie import PydanticObjectId
         
-        recommended_ids = ml_recommendations.recommend_for_user(str(current_user.id), limit=limit)
+        recommended_ids = await ml_recommendations.recommend_for_user(str(current_user.id), limit=limit)
         if recommended_ids:
              valid_ids = [PydanticObjectId(rid) for rid in recommended_ids if PydanticObjectId.is_valid(rid)]
              products = await models.Product.find(In(models.Product.id, valid_ids)).to_list()

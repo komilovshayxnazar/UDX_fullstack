@@ -65,7 +65,13 @@ class Transaction(Document):
         ]
 
 class User(Document):
-    phone: str
+    # Shifrlangan maydonlar (AES-256-GCM)
+    phone: str                              # enc:<base64> formatida saqlanadi
+    phone_hash: str = ""                    # HMAC-SHA256 — login/lookup uchun (indexed)
+    telegram_username: Optional[str] = None # enc:<base64>
+    telegram_username_hash: Optional[str] = None  # HMAC lookup uchun
+    tin: Optional[str] = None              # enc:<base64>
+
     hashed_password: Optional[str] = None
     role: UserRole = UserRole.buyer
     name: Optional[str] = None
@@ -77,11 +83,8 @@ class User(Document):
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     payment_cards: List[PaymentCard] = []
 
-    telegram_username: Optional[str] = None
-
     # Seller specific fields
     description: Optional[str] = None
-    tin: Optional[str] = None
     is_online: bool = False
     distance: Optional[float] = None
     rating: float = 0.0
@@ -90,8 +93,10 @@ class User(Document):
     class Settings:
         name = "users"
         indexes = [
-            IndexModel([("phone", pymongo.ASCENDING)], unique=True),
-            IndexModel([("role", pymongo.ASCENDING)])
+            IndexModel([("phone_hash", pymongo.ASCENDING)], unique=True),
+            IndexModel([("role", pymongo.ASCENDING)]),
+            IndexModel([("telegram_username_hash", pymongo.ASCENDING)],
+                       sparse=True),
         ]
 
 class Category(Document):

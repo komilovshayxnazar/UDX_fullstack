@@ -5,6 +5,7 @@ import models
 import schemas
 from core.dependencies import get_current_user
 from core.security import get_password_hash, verify_password
+from core.encryption import encrypt, decrypt, hmac_hash
 from routers.auth import consume_verified_session, _normalize_phone
 from services import wallet_service, payment_service
 from services.audit_service import log as audit_log
@@ -22,23 +23,27 @@ async def create_user(user: schemas.UserCreate):
             )
 
     normalized_phone = _normalize_phone(user.phone)
-    db_user = await models.User.find_one(models.User.phone == normalized_phone)
+    ph = hmac_hash(normalized_phone)
+    db_user = await models.User.find_one(models.User.phone_hash == ph)
     if db_user:
         raise HTTPException(status_code=400, detail="Phone already registered")
     hashed_password = get_password_hash(user.password)
+    tg = user.telegram_username.lower().lstrip("@") if user.telegram_username else None
     new_user = models.User(
-        phone=normalized_phone,
+        phone=encrypt(normalized_phone),
+        phone_hash=ph,
         hashed_password=hashed_password,
         role=user.role,
         name=user.name,
-        telegram_username=user.telegram_username
+        telegram_username=encrypt(tg) if tg else None,
+        telegram_username_hash=hmac_hash(tg) if tg else None,
     )
     await new_user.insert()
-    return new_user
+    return schemas.user_to_schema(new_user)
 
 @router.get("/me", response_model=schemas.User)
 async def read_users_me(current_user: models.User = Depends(get_current_user)):
-    return current_user
+    return schemas.user_to_schema(current_user)
 
 
 @router.get("/{user_id}/public", response_model=schemas.PublicUserProfile)
@@ -105,7 +110,7 @@ async def update_user_me(
         current_user.is_public = user_update.is_public
         
     await current_user.save()
-    return current_user
+    return schemas.user_to_schema(current_user)
 
 @router.put("/me/password")
 async def update_password_me(
@@ -133,11 +138,13 @@ async def update_phone_me(
     if not verify_password(phone_update.password, current_user.hashed_password):
         raise HTTPException(status_code=400, detail="Incorrect password")
         
-    existing_user = await models.User.find_one(models.User.phone == phone_update.new_phone)
-    if existing_user:
+    new_phone = _normalize_phone(phone_update.new_phone)
+    new_ph    = hmac_hash(new_phone)
+    existing  = await models.User.find_one(models.User.phone_hash == new_ph)
+    if existing:
         raise HTTPException(status_code=400, detail="Phone number already registered")
-        
-    current_user.phone = phone_update.new_phone
+    current_user.phone      = encrypt(new_phone)
+    current_user.phone_hash = new_ph
     await current_user.save()
     return {"message": "Phone updated successfully"}
 
@@ -151,7 +158,7 @@ async def update_role_me(
         raise HTTPException(status_code=403, detail="Cannot assign this role")
     current_user.role = role_update.role
     await current_user.save()
-    return current_user
+    return schemas.user_to_schema(current_user)
 
 @router.put("/me/2fa", response_model=schemas.User)
 async def update_2fa_me(
@@ -160,7 +167,7 @@ async def update_2fa_me(
 ):
     current_user.is_2fa_enabled = two_factor_update.is_2fa_enabled
     await current_user.save()
-    return current_user
+    return schemas.user_to_schema(current_user)
 
 @router.get("/me/cards", response_model=list[schemas.PaymentCardOut])
 async def get_cards(current_user: models.User = Depends(get_current_user)):
@@ -223,8 +230,8 @@ async def deposit_balance(
             card_token=card.card_token, idempotency_key=idempotency_key
         )
 
-    # Re-fetch to return current balance (stale on replay since we skipped credit)
-    return await models.User.get(current_user.id)
+    user = await models.User.get(current_user.id)
+    return schemas.user_to_schema(user)
 
 @router.post("/me/balance/withdraw", response_model=schemas.User)
 async def withdraw_balance(
@@ -248,4 +255,4 @@ async def withdraw_balance(
         detail={"amount": request.amount, "card_last4": card.last4},
         request=http_request
     )
-    return current_user
+    return schemas.user_to_schema(current_user)

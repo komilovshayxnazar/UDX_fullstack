@@ -5,6 +5,7 @@ import uuid
 import models
 
 from core.security import get_password_hash
+from core.encryption import encrypt, hmac_hash
 import telegram_bot
 
 router = APIRouter(prefix="/dev", tags=["dev"])
@@ -38,8 +39,18 @@ async def reset_and_seed():
 
 @router.post("/seed")
 async def seed_data():
-    if await models.User.find_one(models.User.phone == "seller1"):
+    if await models.User.find_one(models.User.phone_hash == hmac_hash("seller1")):
         return {"message": "Data already exists"}
+
+    def make_user(**kw) -> models.User:
+        phone = kw.pop("phone")
+        tin   = kw.pop("tin", None)
+        return models.User(
+            phone=encrypt(phone),
+            phone_hash=hmac_hash(phone),
+            tin=encrypt(tin) if tin else None,
+            **kw
+        )
 
     # ── Kategoriyalar ───────────────────────────────────────────────────────
     cat_veg   = models.Category(name="Vegetables", icon="🥕")
@@ -51,31 +62,31 @@ async def seed_data():
         await c.insert()
 
     # ── Sotuvchilar ─────────────────────────────────────────────────────────
-    seller1 = models.User(
+    seller1 = make_user(
         phone="seller1", hashed_password=get_password_hash("password"),
         role=models.UserRole.seller, name="Green Valley Farm",
         tin="123456789", is_online=True, rating=4.8, review_count=3,
         description="Toshkent viloyatidagi organik ferma. 10 yillik tajriba.",
     )
-    seller2 = models.User(
+    seller2 = make_user(
         phone="seller2", hashed_password=get_password_hash("password"),
         role=models.UserRole.seller, name="Samarqand Bog'i",
         tin=None, is_online=False, rating=3.5, review_count=2,
         description="Samarqand mevalaridagi fermer xo'jaligi.",
     )
-    seller3 = models.User(
+    seller3 = make_user(
         phone="seller3", hashed_password=get_password_hash("password"),
         role=models.UserRole.seller, name="Fergana Sut Zavodi",
         tin="987654321", is_online=True, rating=4.6, review_count=4,
         description="Farg'ona vodiysida 15 yillik sut mahsulotlari ishlab chiqarish.",
     )
-    seller4 = models.User(
+    seller4 = make_user(
         phone="seller4", hashed_password=get_password_hash("password"),
         role=models.UserRole.seller, name="Andijon Donchisi",
         tin="112233445", is_online=False, rating=4.2, review_count=2,
         description="Don mahsulotlari va un. Katta hajmda yetkazib berish.",
     )
-    seller5 = models.User(
+    seller5 = make_user(
         phone="seller5", hashed_password=get_password_hash("password"),
         role=models.UserRole.seller, name="Go'sht Bozori Pro",
         tin=None, is_online=True, rating=2.9, review_count=2,
@@ -85,18 +96,12 @@ async def seed_data():
         await s.insert()
 
     # ── Xaridorlar ──────────────────────────────────────────────────────────
-    buyer1 = models.User(
-        phone="buyer1", hashed_password=get_password_hash("password"),
-        role=models.UserRole.buyer, name="Alisher Karimov",
-    )
-    buyer2 = models.User(
-        phone="buyer2", hashed_password=get_password_hash("password"),
-        role=models.UserRole.buyer, name="Malika Yusupova",
-    )
-    buyer3 = models.User(
-        phone="buyer3", hashed_password=get_password_hash("password"),
-        role=models.UserRole.buyer, name="Jasur Toshmatov",
-    )
+    buyer1 = make_user(phone="buyer1", hashed_password=get_password_hash("password"),
+                       role=models.UserRole.buyer, name="Alisher Karimov")
+    buyer2 = make_user(phone="buyer2", hashed_password=get_password_hash("password"),
+                       role=models.UserRole.buyer, name="Malika Yusupova")
+    buyer3 = make_user(phone="buyer3", hashed_password=get_password_hash("password"),
+                       role=models.UserRole.buyer, name="Jasur Toshmatov")
     for b in [buyer1, buyer2, buyer3]:
         await b.insert()
 
@@ -310,4 +315,87 @@ async def seed_data():
         "products": len(prods),
         "orders": len(db_orders),
         "reviews": review_count,
+    }
+
+
+@router.get("/ml-stats")
+async def ml_stats():
+    """
+    ML model diagnostikasi:
+    - Neo4j holati
+    - Interaction ma'lumotlar soni
+    - SVD explained variance (model 'aniqligi')
+    """
+    import numpy as np
+    from sklearn.decomposition import TruncatedSVD
+    from core import neo4j_db
+
+    # Neo4j holati
+    neo4j_status = neo4j_db.is_available()
+    neo4j_nodes = {}
+    if neo4j_status:
+        user_count    = neo4j_db.execute_query("MATCH (u:User)    RETURN count(u) AS n")
+        product_count = neo4j_db.execute_query("MATCH (p:Product) RETURN count(p) AS n")
+        edge_count    = neo4j_db.execute_query("MATCH ()-[r:INTERACTED]->() RETURN count(r) AS n")
+        neo4j_nodes = {
+            "users":        user_count[0]["n"]    if user_count    else 0,
+            "products":     product_count[0]["n"] if product_count else 0,
+            "interactions": edge_count[0]["n"]    if edge_count    else 0,
+        }
+
+    # MongoDB interactions
+    interactions = await models.ProductInteraction.find_all().to_list()
+    total_interactions = len(interactions)
+    unique_users    = len({i.user_id    for i in interactions})
+    unique_products = len({i.product_id for i in interactions})
+
+    # SVD explained variance
+    svd_variance = None
+    svd_components = None
+    if total_interactions >= 5 and unique_users >= 2 and unique_products >= 2:
+        _WEIGHTS = {"purchase": 3, "click": 2, "view": 1}
+        user_ids    = list({i.user_id    for i in interactions})
+        product_ids = list({i.product_id for i in interactions})
+        user_enc = {uid: idx for idx, uid in enumerate(user_ids)}
+        prod_enc = {pid: idx for idx, pid in enumerate(product_ids)}
+
+        matrix = np.zeros((len(user_ids), len(product_ids)), dtype=np.float32)
+        for inter in interactions:
+            ui = user_enc.get(inter.user_id)
+            pi = prod_enc.get(inter.product_id)
+            if ui is not None and pi is not None:
+                w = _WEIGHTS.get(inter.interaction_type.value, 1)
+                matrix[ui, pi] = max(matrix[ui, pi], w)
+
+        n_components = min(10, unique_users - 1, unique_products - 1)
+        svd = TruncatedSVD(n_components=n_components, random_state=42)
+        svd.fit_transform(matrix)
+        svd_variance   = round(float(svd.explained_variance_ratio_.sum()), 4)
+        svd_components = n_components
+
+    return {
+        "neo4j": {
+            "available": neo4j_status,
+            "nodes": neo4j_nodes,
+        },
+        "mongodb_interactions": {
+            "total":            total_interactions,
+            "unique_users":     unique_users,
+            "unique_products":  unique_products,
+        },
+        "svd_model": {
+            "status":              "trained" if svd_variance is not None else "insufficient_data",
+            "explained_variance":  svd_variance,
+            "n_components":        svd_components,
+            "note": (
+                "0.7+ = yaxshi, 0.5-0.7 = qoniqarli, <0.5 = ko'proq ma'lumot kerak"
+                if svd_variance is not None else
+                f"Kamida 5 ta interaksiya kerak (hozir: {total_interactions})"
+            ),
+        },
+        "recommendation_pipeline": [
+            "1. SVD Matrix Factorization (sklearn) — asosiy",
+            "2. Neo4j Collaborative Filtering       — agar Neo4j ishlasa",
+            "3. MongoDB top-by-views                — fallback",
+        ],
     }

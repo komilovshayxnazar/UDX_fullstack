@@ -24,6 +24,7 @@ import com.udx.app.data.OrderCreate
 import com.udx.app.data.OrderItemCreate
 import com.udx.app.ui.viewmodels.CartItem
 import com.udx.app.ui.viewmodels.CartViewModel
+import com.udx.app.utils.CurrencyFormatter
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -71,13 +72,13 @@ fun CartScreen(
                     cartItems.forEach { item ->
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                             Text("${item.product.name} x${item.quantity}", style = MaterialTheme.typography.bodyMedium)
-                            Text("$${String.format("%.2f", item.product.price * item.quantity)}", style = MaterialTheme.typography.bodyMedium)
+                            Text(CurrencyFormatter.formatUzs(item.product.price * item.quantity), style = MaterialTheme.typography.bodyMedium)
                         }
                     }
                     Divider()
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         Text("Jami:", fontWeight = FontWeight.Bold)
-                        Text("$${String.format("%.2f", totalPrice)}", fontWeight = FontWeight.Bold, color = Color(0xFF9C27B0))
+                        Text(CurrencyFormatter.formatUzs(totalPrice), fontWeight = FontWeight.Bold, color = Color(0xFF9C27B0))
                     }
                     Spacer(modifier = Modifier.height(4.dp))
                     Text("Yetkazib berish usuli:", style = MaterialTheme.typography.labelLarge)
@@ -177,7 +178,7 @@ fun CartScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text("Total:", fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                            Text("$${String.format("%.2f", totalPrice)}", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color(0xFF9C27B0))
+                            Text(CurrencyFormatter.formatUzs(totalPrice), fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color(0xFF9C27B0))
                         }
                         Spacer(modifier = Modifier.height(16.dp))
                         Button(
@@ -264,7 +265,7 @@ fun CartItemRow(
             
             Column(modifier = Modifier.weight(1f)) {
                 Text(product.name, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                Text("$${product.price}", color = Color(0xFF9C27B0), fontWeight = FontWeight.SemiBold)
+                Text(CurrencyFormatter.formatUzs(product.price), color = Color(0xFF9C27B0), fontWeight = FontWeight.SemiBold)
                 
                 Row(
                     verticalAlignment = Alignment.CenterVertically,

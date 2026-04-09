@@ -1,58 +1,213 @@
-from core.neo4j_db import neo4j_db
+"""
+Recommendation engine — uch qavatli:
 
+  1. SVD Matrix Factorization (sklearn) — asosiy ML model
+     Foydalanuvchi-mahsulot interaksiya matritsasini TruncatedSVD bilan
+     faktorizatsiya qiladi va har bir foydalanuvchi uchun bashoratiy ball
+     hisoblaydi.  Og'irliklar: purchase=3, click=2, view=1.
+
+  2. Neo4j Collaborative Filtering — agar Neo4j ishlasa
+     "Siz ko'rgan mahsulotlarni ko'rgan boshqa foydalanuvchilar yana nimalar
+     ko'rgan?" — klassik item-based CF grafdagi INTERACTED munosabatlari orqali.
+
+  3. Fallback — agar ma'lumot yetarli bo'lmasa
+     Bo'sh ro'yxat qaytaradi → `products.py` da `top by views` ishga tushadi.
+"""
+
+from __future__ import annotations
+
+import logging
 from typing import List
+
+import numpy as np
+from sklearn.decomposition import TruncatedSVD
+
 import models
+from core import neo4j_db
 
-def recommend_for_user(user_id: str, limit: int = 10) -> List[str]:
-    """
-    Recommendation Algorithm via Neo4j:
-    1. Try Collaborative Filtering: Recommend products interacted by users who interacted with similar products.
-    2. Fallback: If no history, recommend popular products from the graph.
-    """
-    
-    # Check if the user has any interactions
-    check_query = """
-    MATCH (u:User {id: $user_id})-[:INTERACTED]->()
-    RETURN count(u) > 0 AS has_history
-    """
-    history_result = neo4j_db.execute_query(check_query, {"user_id": user_id})
-    has_history = history_result[0]["has_history"] if history_result else False
+logger = logging.getLogger(__name__)
 
-    if has_history:
-        # Collaborative Filtering via Cypher
-        # Find products other users interacted with, who also interacted with products the current user interacted with.
-        # Exclude products the current user has already interacted with.
-        query = """
-        MATCH (u:User {id: $user_id})-[:INTERACTED]->(p:Product)<-[:INTERACTED]-(other:User)-[:INTERACTED]->(rec:Product)
-        WHERE NOT (u)-[:INTERACTED]->(rec)
-        RETURN rec.id AS recommended_id, count(*) AS score
-        ORDER BY score DESC
-        LIMIT $limit
-        """
-        results = neo4j_db.execute_query(query, {"user_id": user_id, "limit": limit})
-        recommended_ids = [record["recommended_id"] for record in results]
-        
-        # If we got enough collaborative recommendations, return them
-        if len(recommended_ids) >= limit:
-            return recommended_ids
+# Interaction type weights for the interaction matrix
+_WEIGHTS = {"purchase": 3, "click": 2, "view": 1}
 
-    # Fallback Strategy: Popular Products overall
-    fallback_limit = limit if not has_history else limit - len(recommended_ids)
-    fallback_query = """
-    MATCH ()-[r:INTERACTED]->(p:Product)
-    RETURN p.id AS recommended_id, count(r) AS interactions
-    ORDER BY interactions DESC
-    LIMIT $limit
+
+async def recommend_for_user(user_id: str, limit: int = 10) -> List[str]:
     """
-    fallback_results = neo4j_db.execute_query(fallback_query, {"limit": fallback_limit * 2}) # Query extra to account for duplicates
-    
-    popular_ids = [record["recommended_id"] for record in fallback_results]
-    
-    # Merge, excluding duplicates
-    if has_history:
-        for pid in popular_ids:
-            if pid not in recommended_ids and len(recommended_ids) < limit:
-                recommended_ids.append(pid)
-        return recommended_ids
+    Async wrapper: tries SVD first, then Neo4j CF, returns product id list.
+    Empty list means "no personalised recs" — caller should use its own fallback.
+    """
+    # ── 1. SVD ──────────────────────────────────────────────────────────────
+    try:
+        ids = await _svd_recommend(user_id, limit)
+        if ids:
+            logger.info("[ML] SVD returned %d recs for user %s", len(ids), user_id)
+            return ids
+    except Exception as e:
+        logger.warning("[ML] SVD failed: %s", e)
+
+    # ── 2. Neo4j CF ─────────────────────────────────────────────────────────
+    if neo4j_db.is_available():
+        try:
+            ids = _neo4j_cf(user_id, limit)
+            if ids:
+                logger.info("[ML] Neo4j CF returned %d recs for user %s", len(ids), user_id)
+                return ids
+        except Exception as e:
+            logger.warning("[ML] Neo4j CF failed: %s", e)
+
+    return []
+
+
+# ── SVD implementation ────────────────────────────────────────────────────────
+
+async def _svd_recommend(user_id: str, limit: int) -> List[str]:
+    interactions = await models.ProductInteraction.find_all().to_list()
+
+    if len(interactions) < 5:
+        return []
+
+    user_ids    = list({i.user_id    for i in interactions})
+    product_ids = list({i.product_id for i in interactions})
+
+    if len(user_ids) < 2 or len(product_ids) < 2:
+        return []
+
+    if user_id not in user_ids:
+        return []  # cold start
+
+    user_enc = {uid: idx for idx, uid in enumerate(user_ids)}
+    prod_enc = {pid: idx for idx, pid in enumerate(product_ids)}
+    prod_dec = {idx: pid for pid, idx in prod_enc.items()}
+
+    # Build weighted interaction matrix
+    matrix = np.zeros((len(user_ids), len(product_ids)), dtype=np.float32)
+    for inter in interactions:
+        ui = user_enc.get(inter.user_id)
+        pi = prod_enc.get(inter.product_id)
+        if ui is not None and pi is not None:
+            w = _WEIGHTS.get(inter.interaction_type.value, 1)
+            matrix[ui, pi] = max(matrix[ui, pi], w)
+
+    # TruncatedSVD — n_components capped by matrix dimensions
+    n_components = min(10, len(user_ids) - 1, len(product_ids) - 1)
+    if n_components < 1:
+        return []
+
+    svd = TruncatedSVD(n_components=n_components, random_state=42)
+    user_factors = svd.fit_transform(matrix)        # shape: (users, k)
+    item_factors = svd.components_.T                # shape: (items, k)
+
+    # Predicted scores for this user
+    u_idx     = user_enc[user_id]
+    scores    = user_factors[u_idx] @ item_factors.T
+
+    # Mask products the user already interacted with
+    seen = {prod_enc[i.product_id]
+            for i in interactions
+            if i.user_id == user_id and i.product_id in prod_enc}
+
+    recs: List[str] = []
+    for idx in np.argsort(scores)[::-1]:
+        if idx not in seen:
+            recs.append(prod_dec[int(idx)])
+        if len(recs) >= limit:
+            break
+
+    return recs
+
+
+def _svd_explained_variance() -> float | None:
+    """
+    Model 'aniqligi' ko'rsatkichi sifatida SVD explained variance ratio ni
+    hisoblaydi.  Bu 0–1 oralig'ida qiymat qaytaradi; 1.0 = perfect fit.
+    Amalda 0.5–0.8 orasida bo'lishi normal.
+    """
+    import asyncio
+    import sys
+
+    # Faqat debug/test maqsadida sinxron ishlatish uchun
+    if sys.platform == "win32":
+        loop = asyncio.new_event_loop()
     else:
-        return popular_ids[:limit]
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_closed():
+                loop = asyncio.new_event_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+
+    try:
+        interactions = loop.run_until_complete(
+            models.ProductInteraction.find_all().to_list()
+        )
+    except Exception:
+        return None
+
+    if len(interactions) < 5:
+        return None
+
+    user_ids    = list({i.user_id    for i in interactions})
+    product_ids = list({i.product_id for i in interactions})
+    user_enc    = {uid: idx for idx, uid in enumerate(user_ids)}
+    prod_enc    = {pid: idx for idx, pid in enumerate(product_ids)}
+
+    matrix = np.zeros((len(user_ids), len(product_ids)), dtype=np.float32)
+    for inter in interactions:
+        ui = user_enc.get(inter.user_id)
+        pi = prod_enc.get(inter.product_id)
+        if ui is not None and pi is not None:
+            w = _WEIGHTS.get(inter.interaction_type.value, 1)
+            matrix[ui, pi] = max(matrix[ui, pi], w)
+
+    n_components = min(10, len(user_ids) - 1, len(product_ids) - 1)
+    if n_components < 1:
+        return None
+
+    svd = TruncatedSVD(n_components=n_components, random_state=42)
+    svd.fit_transform(matrix)
+    return float(svd.explained_variance_ratio_.sum())
+
+
+# ── Neo4j CF implementation ───────────────────────────────────────────────────
+
+def _neo4j_cf(user_id: str, limit: int) -> List[str]:
+    # Check history
+    has_history = neo4j_db.execute_query(
+        "MATCH (u:User {id: $uid})-[:INTERACTED]->() RETURN count(u) > 0 AS h",
+        {"uid": user_id},
+    )
+    if not (has_history and has_history[0]["h"]):
+        return _neo4j_popular(limit)
+
+    rows = neo4j_db.execute_query(
+        """
+        MATCH (u:User {id: $uid})-[:INTERACTED]->(p:Product)
+              <-[:INTERACTED]-(other:User)-[:INTERACTED]->(rec:Product)
+        WHERE NOT (u)-[:INTERACTED]->(rec)
+        RETURN rec.id AS id, count(*) AS score
+        ORDER BY score DESC
+        LIMIT $lim
+        """,
+        {"uid": user_id, "lim": limit},
+    )
+    ids = [r["id"] for r in rows]
+
+    if len(ids) < limit:
+        popular = _neo4j_popular(limit - len(ids))
+        for pid in popular:
+            if pid not in ids:
+                ids.append(pid)
+    return ids
+
+
+def _neo4j_popular(limit: int) -> List[str]:
+    rows = neo4j_db.execute_query(
+        """
+        MATCH ()-[r:INTERACTED]->(p:Product)
+        RETURN p.id AS id, count(r) AS cnt
+        ORDER BY cnt DESC
+        LIMIT $lim
+        """,
+        {"lim": limit},
+    )
+    return [r["id"] for r in rows]
