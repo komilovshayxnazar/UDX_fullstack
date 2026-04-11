@@ -16,12 +16,12 @@ export function WelcomeScreen({ onContinue, onLanguageClick, onSettingsClick }: 
       {/* Top Navigation */}
       <div className="flex justify-end gap-2 mb-4">
         {onLanguageClick && (
-          <button onClick={onLanguageClick} className="rounded-full p-2 hover:bg-white/10">
+          <button onClick={onLanguageClick} className="rounded-full p-2 hover:bg-background/10">
             <Globe className="h-6 w-6" />
           </button>
         )}
         {onSettingsClick && (
-          <button onClick={onSettingsClick} className="rounded-full p-2 hover:bg-white/10">
+          <button onClick={onSettingsClick} className="rounded-full p-2 hover:bg-background/10">
             <Settings className="h-6 w-6" />
           </button>
         )}
@@ -67,13 +67,13 @@ export function WelcomeScreen({ onContinue, onLanguageClick, onSettingsClick }: 
           className="flex flex-col gap-3"
         >
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/20">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-background/20">
               <Sprout className="h-5 w-5" />
             </div>
             <p>Direct from farm to table</p>
           </div>
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/20">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-background/20">
               <ShoppingBag className="h-5 w-5" />
             </div>
             <p>Best prices for quality produce</p>
@@ -88,7 +88,7 @@ export function WelcomeScreen({ onContinue, onLanguageClick, onSettingsClick }: 
       >
         <Button
           onClick={onContinue}
-          className="w-full bg-white text-[#af47ff] hover:bg-gray-100"
+          className="w-full bg-background text-[#af47ff] hover:bg-accent"
           size="lg"
         >
           {t('welcome.getStarted')}

@@ -118,7 +118,7 @@ export function CartScreen({
 
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-background">
       {/* Header */}
       <div className="sticky top-0 z-10 bg-gradient-to-r from-[#af47ff] to-[#8b2dd1] px-4 py-4 text-white shadow-lg">
         <button
@@ -142,9 +142,9 @@ export function CartScreen({
           <TabsContent value="cart" className="mt-6">
             {cartItems.length === 0 ? (
               <div className="py-12 text-center">
-                <ShoppingBag className="mx-auto mb-4 h-16 w-16 text-gray-300" />
-                <p className="mb-2 text-gray-600">Your cart is empty</p>
-                <p className="text-gray-500">Add some products to get started</p>
+                <ShoppingBag className="mx-auto mb-4 h-16 w-16 text-muted-foreground" />
+                <p className="mb-2 text-muted-foreground">Your cart is empty</p>
+                <p className="text-muted-foreground">Add some products to get started</p>
               </div>
             ) : (
               <>
@@ -160,7 +160,7 @@ export function CartScreen({
                         />
                         <div className="flex-1">
                           <h4 className="mb-1">{item.product.name}</h4>
-                          <p className="mb-2 text-gray-600">{item.product.farmerName}</p>
+                          <p className="mb-2 text-muted-foreground">{item.product.farmerName}</p>
                           <div className="flex items-center justify-between">
                             <span className="text-[#af47ff]">
                               ${item.product.price} / {item.product.unit}
@@ -210,7 +210,7 @@ export function CartScreen({
                           <Truck className="h-5 w-5 text-[#af47ff]" />
                           <span>Courier Delivery</span>
                         </div>
-                        <span className="text-gray-600">${deliveryFee.toFixed(2)}</span>
+                        <span className="text-muted-foreground">${deliveryFee.toFixed(2)}</span>
                       </Label>
                     </div>
                     <div className="flex items-center space-x-2">
@@ -251,11 +251,11 @@ export function CartScreen({
                 <Card className="mb-6 p-4">
                   <h3 className="mb-4">Order Summary</h3>
                   <div className="space-y-2">
-                    <div className="flex justify-between text-gray-600">
+                    <div className="flex justify-between text-muted-foreground">
                       <span>Subtotal</span>
                       <span>${subtotal.toFixed(2)}</span>
                     </div>
-                    <div className="flex justify-between text-gray-600">
+                    <div className="flex justify-between text-muted-foreground">
                       <span>Delivery Fee</span>
                       <span>{deliveryMethod === 'courier' ? `$${deliveryFee.toFixed(2)}` : 'Free'}</span>
                     </div>
@@ -291,9 +291,9 @@ export function CartScreen({
           <TabsContent value="orders" className="mt-6">
             {orderHistory.length === 0 ? (
               <div className="py-12 text-center">
-                <ShoppingBag className="mx-auto mb-4 h-16 w-16 text-gray-300" />
-                <p className="mb-2 text-gray-600">No orders yet</p>
-                <p className="text-gray-500">Your order history will appear here</p>
+                <ShoppingBag className="mx-auto mb-4 h-16 w-16 text-muted-foreground" />
+                <p className="mb-2 text-muted-foreground">No orders yet</p>
+                <p className="text-muted-foreground">Your order history will appear here</p>
               </div>
             ) : (
               <div className="space-y-4">
@@ -302,7 +302,7 @@ export function CartScreen({
                     <div className="mb-3 flex items-center justify-between">
                       <div>
                         <p className="mb-1">Order #{order.id}</p>
-                        <p className="text-gray-600">{order.date}</p>
+                        <p className="text-muted-foreground">{order.date}</p>
                       </div>
                       <Badge className={getStatusColor(order.status)}>
                         {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
@@ -313,7 +313,7 @@ export function CartScreen({
                       {order.items.map((item) => {
                         const product = products.find(p => p.id === item.productId);
                         return product ? (
-                          <div key={item.productId} className="flex justify-between text-gray-600">
+                          <div key={item.productId} className="flex justify-between text-muted-foreground">
                             <span>{product.name} x{item.quantity}</span>
                             <span>${(product.price * item.quantity).toFixed(2)}</span>
                           </div>
@@ -324,7 +324,7 @@ export function CartScreen({
                         <span>Total</span>
                         <span className="text-[#af47ff]">${order.total.toFixed(2)}</span>
                       </div>
-                      <p className="text-gray-600">
+                      <p className="text-muted-foreground">
                         {order.deliveryMethod === 'courier' ? 'Courier Delivery' : 'Self Pickup'}
                       </p>
                     </div>

@@ -1,12 +1,14 @@
-from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect, Query
 
 from typing import Optional
 from datetime import datetime
 
 from beanie import PydanticObjectId
+from jose import JWTError, jwt
 
 import models
 from core.dependencies import get_current_user
+from core.security import SECRET_KEY, ALGORITHM
 from core.websocket import chat_manager
 
 
@@ -37,11 +39,22 @@ async def get_chats(current_user: models.User = Depends(get_current_user)):
         {"$or": [{"user_id": str(current_user.id)}, {"other_user_id": str(current_user.id)}]}
     ).sort("-last_message_time").to_list()
     
+    # Batch-load all other users to avoid N+1 queries
+    other_user_ids = [
+        chat.other_user_id if str(chat.user_id) == str(current_user.id) else chat.user_id
+        for chat in chats
+    ]
+    from beanie.operators import In
+    other_users_list = await models.User.find(
+        In(models.User.id, [PydanticObjectId(uid) for uid in other_user_ids if PydanticObjectId.is_valid(uid)])
+    ).to_list()
+    other_users_map = {str(u.id): u for u in other_users_list}
+
     result = []
     for chat in chats:
         other_user_id = chat.other_user_id if str(chat.user_id) == str(current_user.id) else chat.user_id
-        other_user = await models.User.get(other_user_id)
-        
+        other_user = other_users_map.get(str(other_user_id))
+
         result.append({
             "id": str(chat.id),
             "other_user": {
@@ -157,12 +170,42 @@ async def create_chat(
     
     return {"chat_id": str(new_chat.id), "existing": False}
 
-@router.websocket("/ws/chat/{chat_id}/{user_id}")
-async def websocket_chat_endpoint(websocket: WebSocket, chat_id: str, user_id: str):
+@router.websocket("/ws/chat/{chat_id}")
+async def websocket_chat_endpoint(
+    websocket: WebSocket,
+    chat_id: str,
+    token: str = Query(...),
+):
+    # Authenticate via JWT token query param — never trust URL user_id
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        phone: str = payload.get("sub")
+        if not phone:
+            await websocket.close(code=4001)
+            return
+    except JWTError:
+        await websocket.close(code=4001)
+        return
+
+    user = await models.User.find_one(models.User.phone == phone)
+    if not user:
+        await websocket.close(code=4001)
+        return
+
+    # Verify the user belongs to this chat
+    chat = await _get_chat_by_id(chat_id)
+    if not chat or (str(chat.user_id) != str(user.id) and str(chat.other_user_id) != str(user.id)):
+        await websocket.close(code=4003)
+        return
+
+    user_id = str(user.id)
     await chat_manager.connect(chat_id, websocket)
     try:
         while True:
             data = await websocket.receive_text()
+            # Basic message length guard
+            if len(data) > 4000:
+                continue
             try:
                 new_message = models.Message(
                     chat_id=chat_id,
@@ -171,7 +214,7 @@ async def websocket_chat_endpoint(websocket: WebSocket, chat_id: str, user_id: s
                     timestamp=datetime.utcnow()
                 )
                 await new_message.insert()
-                
+
                 chat = await models.Chat.get(chat_id)
                 if chat:
                     chat.last_message = data

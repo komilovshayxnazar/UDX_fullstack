@@ -29,11 +29,11 @@ export function MyProductsScreen({ onBack, products = initialProducts }: MyProdu
   });
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
+    <div className="min-h-screen bg-background pb-20">
       {/* Header */}
       <div className="bg-gradient-to-r from-[#af47ff] to-[#8b2dd1] px-4 py-6 text-white">
         <div className="mb-4 flex items-center gap-3">
-          <button onClick={onBack} className="rounded-full p-2 hover:bg-white/10">
+          <button onClick={onBack} className="rounded-full p-2 hover:bg-background/10">
             <ArrowLeft className="h-5 w-5" />
           </button>
           <div className="flex-1">
@@ -49,13 +49,13 @@ export function MyProductsScreen({ onBack, products = initialProducts }: MyProdu
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder={t('common.search')}
-            className="bg-white/10 pl-10 text-white placeholder:text-white/60 border-white/20"
+            className="bg-background/10 pl-10 text-white placeholder:text-white/60 border-white/20"
           />
         </div>
       </div>
 
       {/* Filters */}
-      <div className="px-4 py-4 bg-white border-b">
+      <div className="px-4 py-4 bg-background border-b">
         <div className="grid grid-cols-2 gap-3">
           <Select value={categoryFilter} onValueChange={setCategoryFilter}>
             <SelectTrigger>
@@ -88,7 +88,7 @@ export function MyProductsScreen({ onBack, products = initialProducts }: MyProdu
       <div className="px-4 py-4">
         {filteredProducts.length === 0 ? (
           <div className="py-12 text-center">
-            <p className="text-gray-500">No products found</p>
+            <p className="text-muted-foreground">No products found</p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -110,7 +110,7 @@ export function MyProductsScreen({ onBack, products = initialProducts }: MyProdu
                     <div className="mb-2 text-[#af47ff]">
                       ${product.price}/{product.unit}
                     </div>
-                    <div className="mb-3 flex gap-4 text-gray-600">
+                    <div className="mb-3 flex gap-4 text-muted-foreground">
                       <span className="flex items-center gap-1">
                         <Eye className="h-4 w-4" />
                         {product.views}

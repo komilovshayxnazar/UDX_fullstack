@@ -25,12 +25,12 @@ export function RoleSelectionScreen({ onSelectRole, onBack, onLanguageClick, onS
         </button>
         <div className="flex gap-2">
           {onLanguageClick && (
-            <button onClick={onLanguageClick} className="rounded-full p-2 text-white hover:bg-white/10">
+            <button onClick={onLanguageClick} className="rounded-full p-2 text-white hover:bg-background/10">
               <Globe className="h-6 w-6" />
             </button>
           )}
           {onSettingsClick && (
-            <button onClick={onSettingsClick} className="rounded-full p-2 text-white hover:bg-white/10">
+            <button onClick={onSettingsClick} className="rounded-full p-2 text-white hover:bg-background/10">
               <Settings className="h-6 w-6" />
             </button>
           )}
@@ -52,13 +52,13 @@ export function RoleSelectionScreen({ onSelectRole, onBack, onLanguageClick, onS
             onClick={() => onSelectRole('buyer')}
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
-            className="w-full rounded-2xl border-2 border-white/30 bg-white p-6 text-left transition-all hover:border-white hover:shadow-xl"
+            className="w-full rounded-2xl border-2 border-white/30 bg-background p-6 text-left transition-all hover:border-white hover:shadow-xl"
           >
             <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-[#af47ff]/20">
               <ShoppingCart className="h-8 w-8 text-[#af47ff]" />
             </div>
             <h3 className="mb-2">{t('role.buyer')}</h3>
-            <p className="text-gray-600">
+            <p className="text-muted-foreground">
               {t('role.buyerDesc')}
             </p>
           </motion.button>
@@ -67,13 +67,13 @@ export function RoleSelectionScreen({ onSelectRole, onBack, onLanguageClick, onS
             onClick={() => onSelectRole('seller')}
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
-            className="w-full rounded-2xl border-2 border-white/30 bg-white p-6 text-left transition-all hover:border-white hover:shadow-xl"
+            className="w-full rounded-2xl border-2 border-white/30 bg-background p-6 text-left transition-all hover:border-white hover:shadow-xl"
           >
             <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-[#af47ff]/20">
               <Tractor className="h-8 w-8 text-[#af47ff]" />
             </div>
             <h3 className="mb-2">{t('role.seller')}</h3>
-            <p className="text-gray-600">
+            <p className="text-muted-foreground">
               {t('role.sellerDesc')}
             </p>
           </motion.button>

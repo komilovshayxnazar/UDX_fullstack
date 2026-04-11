@@ -87,7 +87,7 @@ export function OrdersScreen({ onBack }: OrdersScreenProps) {
       case 'confirmed': return 'bg-blue-100 text-blue-800';
       case 'completed': return 'bg-green-100 text-green-800';
       case 'cancelled': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
+      default: return 'bg-muted text-foreground';
     }
   };
 
@@ -107,11 +107,11 @@ export function OrdersScreen({ onBack }: OrdersScreenProps) {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-24">
+    <div className="min-h-screen bg-background pb-24">
       {/* Header */}
       <div className="sticky top-0 z-10 bg-gradient-to-r from-[#af47ff] to-[#8b2dd1] px-4 py-4 text-white shadow-lg">
         <div className="mb-4 flex items-center gap-3">
-          <button onClick={onBack} className="rounded-full p-2 hover:bg-white/10">
+          <button onClick={onBack} className="rounded-full p-2 hover:bg-background/10">
             <ArrowLeft className="h-5 w-5" />
           </button>
           <div>
@@ -122,12 +122,12 @@ export function OrdersScreen({ onBack }: OrdersScreenProps) {
 
         {/* Search */}
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="Search orders..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="border-none bg-white pl-10"
+            className="border-none bg-background pl-10"
           />
         </div>
       </div>
@@ -159,23 +159,23 @@ export function OrdersScreen({ onBack }: OrdersScreenProps) {
                         </span>
                       </Badge>
                     </div>
-                    <p className="text-gray-600">{order.customerName}</p>
+                    <p className="text-muted-foreground">{order.customerName}</p>
                   </div>
                   <div className="text-right">
                     <div className="text-[#af47ff]">${order.total.toFixed(2)}</div>
-                    <p className="text-gray-500">{order.date}</p>
+                    <p className="text-muted-foreground">{order.date}</p>
                   </div>
                 </div>
 
-                <div className="mb-3 rounded-lg bg-gray-50 p-3">
+                <div className="mb-3 rounded-lg bg-background p-3">
                   <div className="mb-1">{order.productName}</div>
-                  <div className="flex items-center justify-between text-gray-600">
+                  <div className="flex items-center justify-between text-muted-foreground">
                     <span>{t('product.quantity')}: {order.quantity}</span>
                     <span>${(order.total / order.quantity).toFixed(2)} each</span>
                   </div>
                 </div>
 
-                <div className="mb-3 text-gray-600">
+                <div className="mb-3 text-muted-foreground">
                   <p className="text-xs">Delivery Address:</p>
                   <p>{order.address}</p>
                 </div>
@@ -217,8 +217,8 @@ export function OrdersScreen({ onBack }: OrdersScreenProps) {
           ))}
 
           {filteredOrders.length === 0 && (
-            <div className="py-12 text-center text-gray-500">
-              <Package className="mx-auto mb-3 h-12 w-12 text-gray-400" />
+            <div className="py-12 text-center text-muted-foreground">
+              <Package className="mx-auto mb-3 h-12 w-12 text-muted-foreground" />
               <p>No orders found</p>
             </div>
           )}

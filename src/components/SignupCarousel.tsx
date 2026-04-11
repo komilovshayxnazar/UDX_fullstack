@@ -79,7 +79,7 @@ export function SignupCarousel() {
               key={index}
               onClick={() => setCurrentSlide(index)}
               className={`h-1 rounded-full transition-all duration-300 ${
-                index === currentSlide ? 'w-8 bg-white' : 'w-6 bg-white/50'
+                index === currentSlide ? 'w-8 bg-background' : 'w-6 bg-background/50'
               }`}
               aria-label={`Go to slide ${index + 1}`}
             />

@@ -3,6 +3,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from typing import List
 import uuid
 
+from beanie import PydanticObjectId
+from beanie.operators import In
+
 import models
 import schemas
 from core.dependencies import get_current_user
@@ -18,10 +21,22 @@ async def get_my_contracts(
         {"$or": [{"buyer_id": str(current_user.id)}, {"seller_id": str(current_user.id)}]}
     ).sort("-created_at").to_list()
 
+    # Batch-load all buyers and sellers to avoid N+1 queries
+    user_ids = set()
+    for c in contracts:
+        if PydanticObjectId.is_valid(c.buyer_id):
+            user_ids.add(c.buyer_id)
+        if PydanticObjectId.is_valid(c.seller_id):
+            user_ids.add(c.seller_id)
+    users_list = await models.User.find(
+        In(models.User.id, [PydanticObjectId(uid) for uid in user_ids])
+    ).to_list()
+    users_map = {str(u.id): u for u in users_list}
+
     result = []
     for c in contracts:
-        buyer = await models.User.get(c.buyer_id)
-        seller = await models.User.get(c.seller_id)
+        buyer = users_map.get(str(c.buyer_id))
+        seller = users_map.get(str(c.seller_id))
         result.append(schemas.ContractOut(
             id=c.id,
             buyer_id=c.buyer_id,

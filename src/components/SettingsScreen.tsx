@@ -1,5 +1,6 @@
-import { ArrowLeft, User, Phone, Lock, Shield, CreditCard, Bell, MessageSquare, DollarSign, TrendingUp, Globe, Eye, Ruler, MapPin, HelpCircle, FileText, Info, LogOut, ChevronRight, RefreshCw, EyeOff } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { ArrowLeft, User, Phone, Lock, Shield, CreditCard, Bell, MessageSquare, DollarSign, TrendingUp, Globe, Eye, Ruler, MapPin, HelpCircle, FileText, Info, LogOut, ChevronRight, RefreshCw, EyeOff, Moon } from 'lucide-react';
+import { useTheme } from '../context/ThemeContext';
+import { useState, useEffect, useCallback } from 'react';
 import { api } from '../api';
 import { toast } from 'sonner';
 import { Button } from './ui/button';
@@ -25,7 +26,49 @@ interface SettingsScreenProps {
 }
 
 export function SettingsScreen({ onBack, onLanguageClick, onLogout, onLogin, onSwitchMode, currentMode = 'buyer', user, onTopUp, onWithdraw, token, onUserUpdated }: SettingsScreenProps) {
+  const { theme, setTheme } = useTheme();
   const [phoneVisible, setPhoneVisible] = useState(false);
+
+  const CURRENCIES: Record<string, { label: string; symbol: string }> = {
+    USD: { label: 'US Dollar', symbol: '$' },
+    EUR: { label: 'Euro', symbol: '€' },
+    GBP: { label: 'British Pound', symbol: '£' },
+    JPY: { label: 'Japanese Yen', symbol: '¥' },
+    RUB: { label: 'Russian Ruble', symbol: '₽' },
+    CNY: { label: 'Chinese Yuan', symbol: '¥' },
+    KRW: { label: 'South Korean Won', symbol: '₩' },
+    TRY: { label: 'Turkish Lira', symbol: '₺' },
+    UZS: { label: 'Uzbek Som', symbol: "so'm" },
+    KZT: { label: 'Kazakh Tenge', symbol: '₸' },
+  };
+
+  const [currentCurrency, setCurrentCurrency] = useState<string>(() =>
+    localStorage.getItem('udx_currency') || 'USD'
+  );
+  const [showCurrencyDialog, setShowCurrencyDialog] = useState(false);
+  const [exchangeRates, setExchangeRates] = useState<Record<string, number>>({});
+  const [ratesLoading, setRatesLoading] = useState(false);
+  const [ratesError, setRatesError] = useState(false);
+  const [ratesDate, setRatesDate] = useState('');
+
+  const fetchRates = useCallback(async () => {
+    setRatesLoading(true);
+    setRatesError(false);
+    try {
+      const res = await fetch('https://api.frankfurter.app/latest?from=USD');
+      const data = await res.json();
+      setExchangeRates({ USD: 1, ...data.rates });
+      setRatesDate(data.date);
+    } catch {
+      setRatesError(true);
+    } finally {
+      setRatesLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchRates();
+  }, [fetchRates]);
   const [balanceVisible, setBalanceVisible] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [topUpAmount, setTopUpAmount] = useState('');
@@ -153,11 +196,11 @@ export function SettingsScreen({ onBack, onLanguageClick, onLogout, onLogin, onS
 
   const displayPhone = phoneVisible ? formatPhoneNumber(user?.phone) : maskPhoneNumber(user?.phone);
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-background">
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-white px-4 py-4 shadow-sm">
+      <div className="sticky top-0 z-10 bg-card px-4 py-4 shadow-sm">
         <div className="flex items-center gap-3">
-          <button onClick={onBack} className="rounded-full p-2 hover:bg-gray-100">
+          <button onClick={onBack} className="rounded-full p-2 hover:bg-accent">
             <ArrowLeft className="h-5 w-5" />
           </button>
           <h2>Settings</h2>
@@ -174,14 +217,14 @@ export function SettingsScreen({ onBack, onLanguageClick, onLogout, onLogin, onS
             </Avatar>
             <div className="flex-1">
               <h3>{user?.name || 'Guest User'}</h3>
-              <p className="text-gray-600">{user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : 'Guest'}</p>
+              <p className="text-muted-foreground">{user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : 'Guest'}</p>
               {user && user.name !== 'Guest User' && (
                 <div className="flex items-center gap-2 mt-1">
                   <p className="text-sm font-semibold text-green-600">
                     Balance: {balanceVisible ? `$${user?.balance?.toFixed(2) || '0.00'}` : '******'}
                   </p>
-                  <button onClick={() => setBalanceVisible(!balanceVisible)} className="p-1 hover:bg-gray-100 rounded-full cursor-pointer">
-                    {balanceVisible ? <EyeOff className="h-4 w-4 text-gray-500" /> : <Eye className="h-4 w-4 text-gray-500" />}
+                  <button onClick={() => setBalanceVisible(!balanceVisible)} className="p-1 hover:bg-accent rounded-full cursor-pointer">
+                    {balanceVisible ? <EyeOff className="h-4 w-4 text-muted-foreground" /> : <Eye className="h-4 w-4 text-muted-foreground" />}
                   </button>
                 </div>
               )}
@@ -265,7 +308,7 @@ export function SettingsScreen({ onBack, onLanguageClick, onLogout, onLogin, onS
 
         {/* Account and Security */}
         <div className="mb-6">
-          <h3 className="mb-3 px-2 text-gray-600">Account & Security</h3>
+          <h3 className="mb-3 px-2 text-muted-foreground">Account & Security</h3>
           <Card className="overflow-hidden">
             <Dialog open={editProfileOpen} onOpenChange={setEditProfileOpen}>
               <DialogTrigger asChild>
@@ -294,23 +337,23 @@ export function SettingsScreen({ onBack, onLanguageClick, onLogout, onLogin, onS
               </DialogContent>
             </Dialog>
             <Separator />
-            <div className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50" onClick={() => { }}>
+            <div className="flex items-center justify-between p-4 cursor-pointer hover:bg-accent" onClick={() => { }}>
               <div className="flex items-center gap-3">
-                <Phone className="h-5 w-5 text-gray-600" />
+                <Phone className="h-5 w-5 text-muted-foreground" />
                 <div>
                   <div className="font-medium">Phone Number</div>
-                  <div className="text-sm text-gray-600">{displayPhone}</div>
+                  <div className="text-sm text-muted-foreground">{displayPhone}</div>
                 </div>
               </div>
               {user?.phone && !user.phone.startsWith('google_') && (
                 <button
                   onClick={(e) => { e.stopPropagation(); setPhoneVisible(!phoneVisible); }}
-                  className="rounded-full p-2 hover:bg-gray-200 transition-colors"
+                  className="rounded-full p-2 hover:bg-accent transition-colors"
                 >
                   {phoneVisible ? (
-                    <EyeOff className="h-5 w-5 text-gray-600" />
+                    <EyeOff className="h-5 w-5 text-muted-foreground" />
                   ) : (
-                    <Eye className="h-5 w-5 text-gray-600" />
+                    <Eye className="h-5 w-5 text-muted-foreground" />
                   )}
                 </button>
               )}
@@ -355,7 +398,7 @@ export function SettingsScreen({ onBack, onLanguageClick, onLogout, onLogin, onS
 
         {/* Notifications */}
         <div className="mb-6">
-          <h3 className="mb-3 px-2 text-gray-600">Notifications</h3>
+          <h3 className="mb-3 px-2 text-muted-foreground">Notifications</h3>
           <Card className="overflow-hidden">
             <SettingsItem icon={<Bell />} label="Push Notifications" hasSwitch defaultChecked />
             <Separator />
@@ -371,7 +414,7 @@ export function SettingsScreen({ onBack, onLanguageClick, onLogout, onLogin, onS
 
         {/* Privacy */}
         <div className="mb-6">
-          <h3 className="mb-3 px-2 text-gray-600">Privacy</h3>
+          <h3 className="mb-3 px-2 text-muted-foreground">Privacy</h3>
           <Card className="overflow-hidden">
             <SettingsItem icon={<Eye />} label="Profile Visibility" sublabel="All users" />
           </Card>
@@ -379,13 +422,20 @@ export function SettingsScreen({ onBack, onLanguageClick, onLogout, onLogin, onS
 
         {/* Preferences */}
         <div className="mb-6">
-          <h3 className="mb-3 px-2 text-gray-600">Preferences</h3>
+          <h3 className="mb-3 px-2 text-muted-foreground">Preferences</h3>
           <Card className="overflow-hidden">
+            <SettingsItem icon={<Moon />} label="Dark Mode" hasSwitch checked={theme === 'dark'} onCheckedChange={(checked) => setTheme(checked ? 'dark' : 'light')} />
+            <Separator />
             <SettingsItem icon={<Globe />} label="Language" sublabel="English" onClick={onLanguageClick} />
             <Separator />
             <SettingsItem icon={<Ruler />} label="Units of Measurement" sublabel="kg, tons, liters" onClick={() => { }} />
             <Separator />
-            <SettingsItem icon={<DollarSign />} label="Currency" sublabel="USD ($)" onClick={() => { }} />
+            <SettingsItem
+              icon={<DollarSign />}
+              label="Currency"
+              sublabel={`${currentCurrency} (${CURRENCIES[currentCurrency]?.symbol ?? currentCurrency})`}
+              onClick={() => { fetchRates(); setShowCurrencyDialog(true); }}
+            />
             <Separator />
             <SettingsItem icon={<MapPin />} label="Product Search Region" sublabel="Current location" onClick={() => { }} />
           </Card>
@@ -393,7 +443,7 @@ export function SettingsScreen({ onBack, onLanguageClick, onLogout, onLogin, onS
 
         {/* About */}
         <div className="mb-6">
-          <h3 className="mb-3 px-2 text-gray-600">About the App</h3>
+          <h3 className="mb-3 px-2 text-muted-foreground">About the App</h3>
           <Card className="overflow-hidden">
             <SettingsItem icon={<HelpCircle />} label="Help & Support" sublabel="Chat, FAQ" onClick={() => { }} />
             <Separator />
@@ -401,12 +451,12 @@ export function SettingsScreen({ onBack, onLanguageClick, onLogout, onLogin, onS
             <Separator />
             <SettingsItem icon={<FileText />} label="Privacy Policy" onClick={() => { }} />
             <Separator />
-            <div className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50" onClick={() => { }}>
+            <div className="flex items-center justify-between p-4 cursor-pointer hover:bg-accent" onClick={() => { }}>
               <div className="flex items-center gap-3">
-                <Info className="h-5 w-5 text-gray-500" />
-                <span className="text-gray-600">App Version</span>
+                <Info className="h-5 w-5 text-muted-foreground" />
+                <span className="text-muted-foreground">App Version</span>
               </div>
-              <span className="text-gray-500">v1.0.0</span>
+              <span className="text-muted-foreground">v1.0.0</span>
             </div>
           </Card>
         </div>
@@ -422,6 +472,50 @@ export function SettingsScreen({ onBack, onLanguageClick, onLogout, onLogin, onS
           Log Out
         </Button>
       </div>
+
+      {/* Currency Dialog */}
+      <Dialog open={showCurrencyDialog} onOpenChange={setShowCurrencyDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center justify-between">
+              <span>Select Currency</span>
+              <button onClick={fetchRates} disabled={ratesLoading} className="rounded-full p-1 hover:bg-accent disabled:opacity-50">
+                <RefreshCw className={`h-4 w-4 text-muted-foreground ${ratesLoading ? 'animate-spin' : ''}`} />
+              </button>
+            </DialogTitle>
+            <DialogDescription>
+              {ratesDate ? `Rates as of ${ratesDate} · Base: USD` : 'Loading exchange rates…'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-1 py-2 max-h-72 overflow-y-auto">
+            {ratesError && (
+              <p className="text-sm text-destructive px-2">Failed to load rates. Tap refresh to retry.</p>
+            )}
+            {Object.entries(CURRENCIES).map(([code, { label, symbol }]) => {
+              const rate = exchangeRates[code];
+              return (
+                <button
+                  key={code}
+                  onClick={() => {
+                    setCurrentCurrency(code);
+                    localStorage.setItem('udx_currency', code);
+                    setShowCurrencyDialog(false);
+                  }}
+                  className={`flex items-center justify-between rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-accent ${currentCurrency === code ? 'bg-muted font-medium' : ''}`}
+                >
+                  <span className="flex items-center gap-2">
+                    <span className="w-8 text-base">{symbol}</span>
+                    <span>{code} — {label}</span>
+                  </span>
+                  <span className="text-sm text-muted-foreground">
+                    {ratesLoading ? '…' : rate != null ? `1 USD = ${rate.toFixed(4)}` : 'N/A'}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -431,30 +525,33 @@ interface SettingsItemProps {
   label: string;
   sublabel?: string;
   hasSwitch?: boolean;
+  checked?: boolean;
   defaultChecked?: boolean;
   onCheckedChange?: (checked: boolean) => void;
   onClick?: () => void;
 }
 
-function SettingsItem({ icon, label, sublabel, hasSwitch, defaultChecked, onCheckedChange, onClick }: SettingsItemProps) {
+function SettingsItem({ icon, label, sublabel, hasSwitch, checked, defaultChecked, onCheckedChange, onClick }: SettingsItemProps) {
   const content = (
     <>
-      <div className="text-gray-500">{icon}</div>
+      <div className="text-muted-foreground">{icon}</div>
       <div className="flex-1">
         <div>{label}</div>
-        {sublabel && <div className="text-gray-500">{sublabel}</div>}
+        {sublabel && <div className="text-muted-foreground">{sublabel}</div>}
       </div>
       {hasSwitch ? (
-        <Switch defaultChecked={defaultChecked} onCheckedChange={onCheckedChange} />
+        checked !== undefined
+          ? <Switch checked={checked} onCheckedChange={onCheckedChange} />
+          : <Switch defaultChecked={defaultChecked} onCheckedChange={onCheckedChange} />
       ) : onClick ? (
-        <ChevronRight className="h-5 w-5 text-gray-400" />
+        <ChevronRight className="h-5 w-5 text-muted-foreground" />
       ) : null}
     </>
   );
 
   if (hasSwitch) {
     return (
-      <label className="flex w-full cursor-pointer items-center gap-3 p-4 text-left hover:bg-gray-50">
+      <label className="flex w-full cursor-pointer items-center gap-3 p-4 text-left hover:bg-accent">
         {content}
       </label>
     );
@@ -464,7 +561,7 @@ function SettingsItem({ icon, label, sublabel, hasSwitch, defaultChecked, onChec
     return (
       <button
         onClick={onClick}
-        className="flex w-full items-center gap-3 p-4 text-left hover:bg-gray-50"
+        className="flex w-full items-center gap-3 p-4 text-left hover:bg-accent"
       >
         {content}
       </button>

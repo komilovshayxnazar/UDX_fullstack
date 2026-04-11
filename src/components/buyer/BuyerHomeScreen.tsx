@@ -118,64 +118,53 @@ export function BuyerHomeScreen({
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-background">
       {/* Header */}
       <div className="sticky top-0 z-10 bg-gradient-to-r from-[#af47ff] to-[#8b2dd1] px-4 py-4 text-white shadow-lg">
         <div className="mb-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div>
-              <h2 className="text-white">UDX</h2>
-              <p className="text-white/80">Agricultural Marketplace</p>
-            </div>
+          <div>
+            <h2 className="text-white">UDX</h2>
+            <p className="text-white/80">Agricultural Marketplace</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button onClick={onMessagesClick} className="relative rounded-full p-1 hover:bg-background/10">
+              <Mail className="h-6 w-6" />
+              {totalUnreadMessages > 0 && (
+                <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] text-white">
+                  {totalUnreadMessages}
+                </span>
+              )}
+            </button>
+            <button onClick={onCartClick} className="relative rounded-full p-1 hover:bg-background/10">
+              <ShoppingCart className="h-6 w-6" />
+              {cartItemCount > 0 && (
+                <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] text-white">
+                  {cartItemCount}
+                </span>
+              )}
+            </button>
             {onSwitchToSeller && (
               <Button
                 onClick={onSwitchToSeller}
                 variant="ghost"
                 size="sm"
-                className="bg-white/20 text-white hover:bg-white/30"
+                className="bg-background/20 text-white hover:bg-background/30 h-8 px-2 text-xs"
               >
-                <Store className="mr-2 h-4 w-4" />
+                <Store className="mr-1 h-4 w-4" />
                 Seller
               </Button>
             )}
-          </div>
-          <div className="flex gap-2">
-            <button onClick={onMessagesClick} className="relative">
-              <Mail className="h-6 w-6" />
-              {totalUnreadMessages > 0 && (
-                <span className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-white">
-                  {totalUnreadMessages}
-                </span>
-              )}
-            </button>
-            <button onClick={onLanguageClick} className="relative">
-              <Globe className="h-6 w-6" />
-            </button>
-            <button onClick={onSettingsClick} className="relative">
-              <Settings className="h-6 w-6" />
-            </button>
-            <button onClick={onFavoritesClick} className="relative">
-              <Heart className="h-6 w-6" />
-            </button>
-            <button onClick={onCartClick} className="relative">
-              <ShoppingCart className="h-6 w-6" />
-              {cartItemCount > 0 && (
-                <span className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-white">
-                  {cartItemCount}
-                </span>
-              )}
-            </button>
           </div>
         </div>
 
         {/* Search Bar */}
         <div className="relative" onClick={onSearchClick}>
-          <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder={t('common.search') + ' (@nickname, name, phone)'}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="border-none bg-white pl-10 pr-4 cursor-pointer"
+            className="border-none bg-background pl-10 pr-4 cursor-pointer"
             readOnly
           />
         </div>
@@ -217,7 +206,7 @@ export function BuyerHomeScreen({
                 onClick={() => setSelectedCategory(category.id)}
                 className={`flex flex-shrink-0 flex-col items-center gap-2 rounded-xl p-4 transition-all ${selectedCategory === category.id
                     ? 'bg-[#af47ff] text-white'
-                    : 'bg-white text-gray-700'
+                    : 'bg-background text-foreground'
                   }`}
                 style={{ minWidth: '100px' }}
               >
@@ -247,11 +236,11 @@ export function BuyerHomeScreen({
                             alt={farmer.name}
                             className="h-16 w-16 rounded-full object-cover"
                           />
-                          <div className="absolute bottom-0 right-0 h-4 w-4 rounded-full border-2 border-white bg-green-500"></div>
+                          <div className="absolute bottom-0 right-0 h-4 w-4 rounded-full border-2 border-background bg-green-500"></div>
                         </div>
                         <div className="flex-1">
                           <h4>{farmer.name}</h4>
-                          <div className="flex items-center gap-2 text-sm text-gray-600">
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
                             <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
                             <span>{farmer.rating}</span>
                             <span>•</span>
@@ -262,7 +251,7 @@ export function BuyerHomeScreen({
                           size="sm"
                           onClick={() => handleSelectFarmer(farmer.id)}
                           disabled={isSelected}
-                          className={isSelected ? 'bg-gray-300' : 'bg-[#af47ff] hover:bg-[#9935e6]'}
+                          className={isSelected ? 'bg-muted text-foreground' : 'bg-[#af47ff] hover:bg-[#9935e6]'}
                         >
                           {isSelected ? 'Selected' : 'Select'}
                         </Button>
@@ -326,7 +315,7 @@ export function BuyerHomeScreen({
                 </div>
                 <div className="p-3">
                   <h4 className="mb-1 line-clamp-1">{product.name}</h4>
-                  <div className="mb-2 flex items-center gap-2 text-gray-600">
+                  <div className="mb-2 flex items-center gap-2 text-muted-foreground">
                     <div className="flex items-center gap-1">
                       <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
                       <span>{product.rating}</span>
@@ -341,7 +330,7 @@ export function BuyerHomeScreen({
                       <span className="text-[#af47ff]">
                         ${product.price}
                       </span>
-                      <span className="text-gray-500">/{product.unit}</span>
+                      <span className="text-muted-foreground">/{product.unit}</span>
                     </div>
                   </div>
                 </div>

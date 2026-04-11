@@ -45,55 +45,40 @@ export function SellerDashboard({
   const sellerName = "Your Farm"; // In a real app, get from user profile
   const sellerAvatar = "🌾";
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
+    <div className="min-h-screen bg-background pb-20">
       {/* Header */}
       <div className="bg-gradient-to-r from-[#af47ff] to-[#8b2dd1] px-4 py-6 text-white">
         <div className="mb-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/20 text-2xl">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-background/20 text-2xl">
               {sellerAvatar}
             </div>
             <div>
               <h2 className="text-white">{sellerName}</h2>
               <p className="text-white/80">{t('seller.dashboard')}</p>
             </div>
+          </div>
+          <div className="flex items-center gap-1">
+            {onMessagesClick && (
+              <button onClick={onMessagesClick} className="rounded-full p-2 hover:bg-background/10">
+                <Mail className="h-6 w-6" />
+              </button>
+            )}
+            {onSettingsClick && (
+              <button onClick={onSettingsClick} className="rounded-full p-2 hover:bg-background/10">
+                <Settings className="h-6 w-6" />
+              </button>
+            )}
             {onSwitchToBuyer && (
               <Button
                 onClick={onSwitchToBuyer}
                 variant="ghost"
                 size="sm"
-                className="bg-white/20 text-white hover:bg-white/30"
+                className="bg-background/20 text-white hover:bg-background/30 h-8 px-2 text-xs"
               >
-                <ShoppingBag className="mr-2 h-4 w-4" />
+                <ShoppingBag className="mr-1 h-4 w-4" />
                 Buyer
               </Button>
-            )}
-          </div>
-          <div className="flex gap-2">
-            {onSearchClick && (
-              <button onClick={onSearchClick} className="rounded-full p-2 hover:bg-white/10">
-                <Search className="h-6 w-6" />
-              </button>
-            )}
-            {onMessagesClick && (
-              <button onClick={onMessagesClick} className="rounded-full p-2 hover:bg-white/10">
-                <Mail className="h-6 w-6" />
-              </button>
-            )}
-            {onLanguageClick && (
-              <button onClick={onLanguageClick} className="rounded-full p-2 hover:bg-white/10">
-                <Globe className="h-6 w-6" />
-              </button>
-            )}
-            {onSettingsClick && (
-              <button onClick={onSettingsClick} className="rounded-full p-2 hover:bg-white/10">
-                <Settings className="h-6 w-6" />
-              </button>
-            )}
-            {onFavoritesClick && (
-              <button onClick={onFavoritesClick} className="rounded-full p-2 hover:bg-white/10">
-                <Heart className="h-6 w-6" />
-              </button>
             )}
           </div>
         </div>
@@ -103,7 +88,7 @@ export function SellerDashboard({
         {/* Stats Cards */}
         <div className="mb-6 grid grid-cols-2 gap-3">
           <Card className="p-4">
-            <div className="mb-2 flex items-center gap-2 text-gray-600">
+            <div className="mb-2 flex items-center gap-2 text-muted-foreground">
               <Eye className="h-5 w-5" />
               <span>Views</span>
             </div>
@@ -112,7 +97,7 @@ export function SellerDashboard({
           </Card>
 
           <Card className="p-4">
-            <div className="mb-2 flex items-center gap-2 text-gray-600">
+            <div className="mb-2 flex items-center gap-2 text-muted-foreground">
               <ShoppingBag className="h-5 w-5" />
               <span>Sales</span>
             </div>
@@ -121,7 +106,7 @@ export function SellerDashboard({
           </Card>
 
           <Card className="p-4">
-            <div className="mb-2 flex items-center gap-2 text-gray-600">
+            <div className="mb-2 flex items-center gap-2 text-muted-foreground">
               <DollarSign className="h-5 w-5" />
               <span>Revenue</span>
             </div>
@@ -130,12 +115,12 @@ export function SellerDashboard({
           </Card>
 
           <Card className="p-4">
-            <div className="mb-2 flex items-center gap-2 text-gray-600">
+            <div className="mb-2 flex items-center gap-2 text-muted-foreground">
               <Package className="h-5 w-5" />
               <span>Products</span>
             </div>
             <div className="mb-1 text-[#af47ff]">{mockSellerStats.activeProducts}</div>
-            <p className="text-gray-600">Active</p>
+            <p className="text-muted-foreground">Active</p>
           </Card>
         </div>
 
@@ -230,7 +215,7 @@ export function SellerDashboard({
                     <div className="mb-2 text-[#af47ff]">
                       ${product.price}/{product.unit}
                     </div>
-                    <div className="flex gap-2 text-gray-600">
+                    <div className="flex gap-2 text-muted-foreground">
                       <span>👁️ {product.views}</span>
                       <span>🛒 {product.sales} sold</span>
                     </div>

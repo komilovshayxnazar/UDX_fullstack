@@ -71,6 +71,21 @@ data class TelegramOtpVerify(
     val code: String
 )
 
+data class PhoneOtpInit(
+    val phone: String
+)
+
+data class PhoneOtpInitResponse(
+    val token: String,
+    @SerializedName("bot_username") val botUsername: String,
+    @SerializedName("expires_in") val expiresIn: Int
+)
+
+data class PhoneOtpVerify(
+    val phone: String,
+    val code: String
+)
+
 data class MessageResponse(
     val detail: String
 )
@@ -178,6 +193,7 @@ data class ProductRemote(
     val sales: Int = 0,
     val gallery: List<String> = emptyList(),
     @SerializedName("is_b2b") val isB2b: Boolean = false,
+    val region: String? = null,
     val seller: SellerPublic? = null
 )
 
@@ -215,7 +231,8 @@ data class ProductCreate(
     val image: String,
     val description: String,
     @SerializedName("category_id") val categoryId: String,
-    @SerializedName("is_b2b") val isB2b: Boolean = false
+    @SerializedName("is_b2b") val isB2b: Boolean = false,
+    val region: String? = null
 )
 
 data class InteractionRequest(

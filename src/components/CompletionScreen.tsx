@@ -46,7 +46,7 @@ export function CompletionScreen({ role }: CompletionScreenProps) {
 
         <Button
           onClick={() => console.log('Continue to app')}
-          className="w-full bg-white text-[#af47ff] hover:bg-gray-100"
+          className="w-full bg-background text-[#af47ff] hover:bg-accent"
           size="lg"
         >
           {role === 'buyer' ? 'Start Shopping' : 'List Your Products'}

@@ -218,11 +218,11 @@ export function MultiDeviceContractScreen({ onBack, onComplete }: MultiDeviceCon
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-background">
       {/* Header */}
       <div className="bg-gradient-to-r from-[#af47ff] to-[#8b2dd1] px-4 py-6 text-white">
         <div className="flex items-center gap-3">
-          <button onClick={handlePreviousStep} className="rounded-full p-2 hover:bg-white/10">
+          <button onClick={handlePreviousStep} className="rounded-full p-2 hover:bg-background/10">
             <ArrowLeft className="h-5 w-5" />
           </button>
           <div className="flex-1">
@@ -377,7 +377,7 @@ export function MultiDeviceContractScreen({ onBack, onComplete }: MultiDeviceCon
                     <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-[#af47ff]/10">
                       <Video className="h-8 w-8 text-[#af47ff]" />
                     </div>
-                    <p className="text-gray-600">
+                    <p className="text-muted-foreground">
                       Position your face in the frame for verification
                     </p>
                   </div>
@@ -388,7 +388,7 @@ export function MultiDeviceContractScreen({ onBack, onComplete }: MultiDeviceCon
                       {isVerifying ? (
                         <Loader2 className="h-24 w-24 animate-spin text-[#af47ff]" />
                       ) : (
-                        <Camera className="h-24 w-24 text-gray-600" />
+                        <Camera className="h-24 w-24 text-muted-foreground" />
                       )}
                     </div>
                     {/* Face detection overlay */}
@@ -436,9 +436,9 @@ export function MultiDeviceContractScreen({ onBack, onComplete }: MultiDeviceCon
                 )}
               </div>
 
-              <div className="rounded-lg bg-gray-50 p-6 text-center">
-                <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gray-200">
-                  <User className="h-8 w-8 text-gray-500" />
+              <div className="rounded-lg bg-background p-6 text-center">
+                <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-muted">
+                  <User className="h-8 w-8 text-muted-foreground" />
                 </div>
                 <p className="mb-2">{contractData.party2Name}</p>
                 {otherPartyStatus.currentAction === 'verifying-face' ? (
@@ -449,7 +449,7 @@ export function MultiDeviceContractScreen({ onBack, onComplete }: MultiDeviceCon
                 ) : otherPartyStatus.faceVerified ? (
                   <p className="text-green-600">Face verified ✓</p>
                 ) : (
-                  <p className="text-gray-500">Waiting for face verification</p>
+                  <p className="text-muted-foreground">Waiting for face verification</p>
                 )}
               </div>
             </Card>
@@ -486,11 +486,11 @@ export function MultiDeviceContractScreen({ onBack, onComplete }: MultiDeviceCon
 
               {!currentUserStatus.signed ? (
                 <>
-                  <p className="mb-4 text-gray-600">
+                  <p className="mb-4 text-muted-foreground">
                     Draw your signature in the box below
                   </p>
 
-                  <div className="rounded-lg border-2 border-dashed border-gray-300 bg-white p-2">
+                  <div className="rounded-lg border-2 border-dashed border-border bg-background p-2">
                     <canvas
                       ref={canvasRef}
                       width={340}
@@ -531,7 +531,7 @@ export function MultiDeviceContractScreen({ onBack, onComplete }: MultiDeviceCon
                     <p className="text-green-700">Your signature has been saved!</p>
                   </div>
                   {signature && (
-                    <div className="rounded-lg border-2 border-gray-200 bg-white p-2">
+                    <div className="rounded-lg border-2 border-border bg-background p-2">
                       <img src={signature} alt="Your signature" className="w-full" />
                     </div>
                   )}
@@ -551,9 +551,9 @@ export function MultiDeviceContractScreen({ onBack, onComplete }: MultiDeviceCon
                 )}
               </div>
 
-              <div className="rounded-lg bg-gray-50 p-6 text-center">
-                <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gray-200">
-                  <User className="h-8 w-8 text-gray-500" />
+              <div className="rounded-lg bg-background p-6 text-center">
+                <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-muted">
+                  <User className="h-8 w-8 text-muted-foreground" />
                 </div>
                 <p className="mb-2">{contractData.party2Name}</p>
                 {otherPartyStatus.currentAction === 'signing' ? (
@@ -564,7 +564,7 @@ export function MultiDeviceContractScreen({ onBack, onComplete }: MultiDeviceCon
                 ) : otherPartyStatus.signed ? (
                   <p className="text-green-600">Contract signed ✓</p>
                 ) : (
-                  <p className="text-gray-500">Waiting for signature</p>
+                  <p className="text-muted-foreground">Waiting for signature</p>
                 )}
               </div>
             </Card>
@@ -597,7 +597,7 @@ export function MultiDeviceContractScreen({ onBack, onComplete }: MultiDeviceCon
                 {contractData.description && (
                   <div>
                     <Label>Description</Label>
-                    <p className="text-gray-600">{contractData.description}</p>
+                    <p className="text-muted-foreground">{contractData.description}</p>
                   </div>
                 )}
                 {contractData.amount && (
@@ -616,7 +616,7 @@ export function MultiDeviceContractScreen({ onBack, onComplete }: MultiDeviceCon
                   <div>
                     <Label>You ({contractData.party1Name})</Label>
                     {contractData.party1Company && (
-                      <p className="text-gray-600">{contractData.party1Company}</p>
+                      <p className="text-muted-foreground">{contractData.party1Company}</p>
                     )}
                   </div>
                   <div className="flex flex-col gap-2">
@@ -635,7 +635,7 @@ export function MultiDeviceContractScreen({ onBack, onComplete }: MultiDeviceCon
                   <div>
                     <Label>{contractData.party2Name}</Label>
                     {contractData.party2Company && (
-                      <p className="text-gray-600">{contractData.party2Company}</p>
+                      <p className="text-muted-foreground">{contractData.party2Company}</p>
                     )}
                   </div>
                   <div className="flex flex-col gap-2">
@@ -655,7 +655,7 @@ export function MultiDeviceContractScreen({ onBack, onComplete }: MultiDeviceCon
             {contractData.terms && (
               <Card className="p-4">
                 <h3 className="mb-4">Terms & Conditions</h3>
-                <p className="whitespace-pre-wrap text-gray-600">{contractData.terms}</p>
+                <p className="whitespace-pre-wrap text-muted-foreground">{contractData.terms}</p>
               </Card>
             )}
 

@@ -150,11 +150,11 @@ export function CreateContractScreen({ onBack, onComplete }: CreateContractScree
   }, [currentStep]);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-background">
       {/* Header */}
       <div className="bg-gradient-to-r from-[#af47ff] to-[#8b2dd1] px-4 py-6 text-white">
         <div className="flex items-center gap-3">
-          <button onClick={handlePreviousStep} className="rounded-full p-2 hover:bg-white/10">
+          <button onClick={handlePreviousStep} className="rounded-full p-2 hover:bg-background/10">
             <ArrowLeft className="h-5 w-5" />
           </button>
           <div className="flex-1">
@@ -301,7 +301,7 @@ export function CreateContractScreen({ onBack, onComplete }: CreateContractScree
                 <h3 className="mb-2">
                   {currentStep === 'party1-face' ? contractData.party1Name : contractData.party2Name} Face Verification
                 </h3>
-                <p className="text-gray-600">
+                <p className="text-muted-foreground">
                   Position your face in the frame for verification
                 </p>
               </div>
@@ -309,7 +309,7 @@ export function CreateContractScreen({ onBack, onComplete }: CreateContractScree
               {/* Simulated camera view */}
               <div className="relative aspect-square overflow-hidden rounded-lg bg-gray-900">
                 <div className="flex h-full items-center justify-center">
-                  <Camera className="h-24 w-24 text-gray-600" />
+                  <Camera className="h-24 w-24 text-muted-foreground" />
                 </div>
                 {/* Face detection overlay */}
                 <div className="absolute left-1/2 top-1/2 h-48 w-48 -translate-x-1/2 -translate-y-1/2 rounded-full border-4 border-white/50"></div>
@@ -344,12 +344,12 @@ export function CreateContractScreen({ onBack, onComplete }: CreateContractScree
                 <h3 className="mb-2">
                   {currentStep === 'party1-signature' ? contractData.party1Name : contractData.party2Name} Signature
                 </h3>
-                <p className="text-gray-600">
+                <p className="text-muted-foreground">
                   Draw your signature in the box below
                 </p>
               </div>
 
-              <div className="rounded-lg border-2 border-dashed border-gray-300 bg-white p-2">
+              <div className="rounded-lg border-2 border-dashed border-border bg-background p-2">
                 <canvas
                   ref={canvasRef}
                   width={340}
@@ -399,7 +399,7 @@ export function CreateContractScreen({ onBack, onComplete }: CreateContractScree
                 {contractData.description && (
                   <div>
                     <Label>Description</Label>
-                    <p className="text-gray-600">{contractData.description}</p>
+                    <p className="text-muted-foreground">{contractData.description}</p>
                   </div>
                 )}
                 {contractData.amount && (
@@ -419,14 +419,14 @@ export function CreateContractScreen({ onBack, onComplete }: CreateContractScree
                     <Label>Party 1</Label>
                     <p>{contractData.party1Name}</p>
                     {contractData.party1Company && (
-                      <p className="text-gray-600">{contractData.party1Company}</p>
+                      <p className="text-muted-foreground">{contractData.party1Company}</p>
                     )}
                   </div>
                   <div className="flex flex-col gap-2">
-                    <Badge className={party1FaceVerified ? 'bg-green-500' : 'bg-gray-400'}>
+                    <Badge className={party1FaceVerified ? 'bg-green-500' : 'bg-muted'}>
                       {party1FaceVerified ? 'Face Verified' : 'Not Verified'}
                     </Badge>
-                    <Badge className={party1Signature ? 'bg-green-500' : 'bg-gray-400'}>
+                    <Badge className={party1Signature ? 'bg-green-500' : 'bg-muted'}>
                       {party1Signature ? 'Signed' : 'Not Signed'}
                     </Badge>
                   </div>
@@ -437,14 +437,14 @@ export function CreateContractScreen({ onBack, onComplete }: CreateContractScree
                     <Label>Party 2</Label>
                     <p>{contractData.party2Name}</p>
                     {contractData.party2Company && (
-                      <p className="text-gray-600">{contractData.party2Company}</p>
+                      <p className="text-muted-foreground">{contractData.party2Company}</p>
                     )}
                   </div>
                   <div className="flex flex-col gap-2">
-                    <Badge className={party2FaceVerified ? 'bg-green-500' : 'bg-gray-400'}>
+                    <Badge className={party2FaceVerified ? 'bg-green-500' : 'bg-muted'}>
                       {party2FaceVerified ? 'Face Verified' : 'Not Verified'}
                     </Badge>
-                    <Badge className={party2Signature ? 'bg-green-500' : 'bg-gray-400'}>
+                    <Badge className={party2Signature ? 'bg-green-500' : 'bg-muted'}>
                       {party2Signature ? 'Signed' : 'Not Signed'}
                     </Badge>
                   </div>
@@ -455,7 +455,7 @@ export function CreateContractScreen({ onBack, onComplete }: CreateContractScree
             {contractData.terms && (
               <Card className="p-4">
                 <h3 className="mb-4">Terms & Conditions</h3>
-                <p className="whitespace-pre-wrap text-gray-600">{contractData.terms}</p>
+                <p className="whitespace-pre-wrap text-muted-foreground">{contractData.terms}</p>
               </Card>
             )}
 

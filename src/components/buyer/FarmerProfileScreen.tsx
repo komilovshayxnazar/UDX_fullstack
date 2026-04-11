@@ -29,12 +29,12 @@ export function FarmerProfileScreen({ farmerId, onBack, onProductClick }: Farmer
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-background">
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-white px-4 py-4 shadow-sm">
+      <div className="sticky top-0 z-10 bg-background px-4 py-4 shadow-sm">
         <button
           onClick={onBack}
-          className="flex items-center gap-2 text-gray-600 hover:text-gray-900"
+          className="flex items-center gap-2 text-muted-foreground hover:text-foreground"
         >
           <ArrowLeft className="h-5 w-5" />
           Back
@@ -42,7 +42,7 @@ export function FarmerProfileScreen({ farmerId, onBack, onProductClick }: Farmer
       </div>
 
       {/* Farm Header */}
-      <div className="bg-white px-4 py-6">
+      <div className="bg-background px-4 py-6">
         <div className="mb-6 flex items-start gap-4">
           <img
             src={farmer.logo}
@@ -54,9 +54,9 @@ export function FarmerProfileScreen({ farmerId, onBack, onProductClick }: Farmer
             <div className="mb-2 flex items-center gap-1">
               <Star className="h-5 w-5 fill-yellow-400 text-yellow-400" />
               <span>{farmer.rating}</span>
-              <span className="text-gray-600">({farmer.reviewCount} reviews)</span>
+              <span className="text-muted-foreground">({farmer.reviewCount} reviews)</span>
             </div>
-            <div className="flex items-center gap-1 text-gray-600">
+            <div className="flex items-center gap-1 text-muted-foreground">
               <MapPin className="h-4 w-4" />
               <span>{farmer.distance} km away</span>
             </div>
@@ -105,14 +105,14 @@ export function FarmerProfileScreen({ farmerId, onBack, onProductClick }: Farmer
       </div>
 
       {/* About */}
-      <div className="mt-4 bg-white px-4 py-6">
+      <div className="mt-4 bg-background px-4 py-6">
         <h3 className="mb-3">About</h3>
-        <p className="text-gray-600">{farmer.description}</p>
+        <p className="text-muted-foreground">{farmer.description}</p>
       </div>
 
       {/* Gallery */}
       {farmer.gallery.length > 0 && (
-        <div className="mt-4 bg-white px-4 py-6">
+        <div className="mt-4 bg-background px-4 py-6">
           <h3 className="mb-3">Gallery</h3>
           <div className="grid grid-cols-2 gap-3">
             {farmer.gallery.map((image, index) => (
@@ -129,7 +129,7 @@ export function FarmerProfileScreen({ farmerId, onBack, onProductClick }: Farmer
       )}
 
       {/* Products */}
-      <div className="mt-4 bg-white px-4 py-6">
+      <div className="mt-4 bg-background px-4 py-6">
         <h3 className="mb-3">Products ({farmerProducts.length})</h3>
         <div className="grid grid-cols-2 gap-4">
           {farmerProducts.map((product) => (
@@ -158,7 +158,7 @@ export function FarmerProfileScreen({ farmerId, onBack, onProductClick }: Farmer
                       <span className="text-[#af47ff]">
                         ${product.price}
                       </span>
-                      <span className="text-gray-500">/{product.unit}</span>
+                      <span className="text-muted-foreground">/{product.unit}</span>
                     </div>
                     <div className="flex items-center gap-1">
                       <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />

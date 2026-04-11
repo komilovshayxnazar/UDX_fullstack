@@ -46,7 +46,7 @@ export function SellerProfileScreen({ onComplete, onBack }: SellerProfileScreenP
           Share details about your farm
         </p>
 
-        <form onSubmit={handleSubmit} className="space-y-6 rounded-2xl bg-white p-6">
+        <form onSubmit={handleSubmit} className="space-y-6 rounded-2xl bg-background p-6">
           <div>
             <Label htmlFor="farmName">Farm Name *</Label>
             <Input

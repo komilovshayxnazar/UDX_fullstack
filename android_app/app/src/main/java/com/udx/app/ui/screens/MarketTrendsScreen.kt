@@ -4,6 +4,9 @@ package com.udx.app.ui.screens
 
 import androidx.compose.material3.ExperimentalMaterial3Api
 
+import android.content.Context
+import androidx.compose.ui.platform.LocalContext
+import com.udx.app.utils.CurrencyFormatter
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -17,6 +20,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -35,44 +39,79 @@ import java.util.*
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MarketTrendsScreen(onBack: () -> Unit) {
-    var products by remember { mutableStateOf<List<ProductRemote>>(emptyList()) }
-    var selectedProduct by remember { mutableStateOf<ProductRemote?>(null) }
+    val context = LocalContext.current
+
+    var productsByName by remember { mutableStateOf<Map<String, List<ProductRemote>>>(emptyMap()) }
+    var selectedName by remember { mutableStateOf<String?>(null) }
     var priceHistory by remember { mutableStateOf<List<PriceHistory>>(emptyList()) }
-    
+    var avgCurrentPrice by remember { mutableStateOf(0.0) }
     var isLoading by remember { mutableStateOf(true) }
-    
     var showDropdown by remember { mutableStateOf(false) }
 
-    LaunchedEffect(Unit) {
-        try {
-            products = NetworkModule.apiService.getProducts()
-            if (products.isNotEmpty()) {
-                selectedProduct = products.first()
-            }
-        } catch (e: Exception) {
-            // Handle error
-        } finally {
-            isLoading = false
+    val currentCurrency by remember {
+        mutableStateOf(
+            context.getSharedPreferences("udx_prefs", Context.MODE_PRIVATE)
+                .getString("currency", "USD") ?: "USD"
+        )
+    }
+    var exchangeRate by remember { mutableStateOf(1.0) }
+
+    // Valyuta kursi — O'zbekiston Markaziy banki
+    LaunchedEffect(currentCurrency) {
+        if (currentCurrency != "USD") {
+            try {
+                val (rates, _) = CurrencyFormatter.fetchCbuRates()
+                exchangeRate = rates[currentCurrency] ?: 1.0
+            } catch (_: Exception) { exchangeRate = 1.0 }
+        } else {
+            exchangeRate = 1.0
         }
     }
-    
-    LaunchedEffect(selectedProduct) {
-        selectedProduct?.let { product ->
+
+    // Mahsulotlarni yuklash + tanlangan mahsulotning tarixini yuklash — bitta LaunchedEffect
+    LaunchedEffect(selectedName) {
+        // Birinchi marta: mahsulotlarni yukla
+        if (productsByName.isEmpty()) {
             try {
-                priceHistory = NetworkModule.apiService.getPriceHistory(product.id)
-            } catch (e: Exception) {
-                priceHistory = emptyList()
+                val all = NetworkModule.apiService.getProducts()
+                val grouped = all.groupBy { it.name.trim() }
+                productsByName = grouped
+                // selectedName hali null — birinchisini tanlaymiz va davom etamiz
+                val firstName = grouped.keys.firstOrNull() ?: return@LaunchedEffect
+                selectedName = firstName
+                // Ushbu LaunchedEffect qayta ishga tushadi selectedName o'zgarganda,
+                // shuning uchun bu yerda tarix yuklashni qilmaymiz
+                return@LaunchedEffect
+            } catch (_: Exception) {
+            } finally {
+                isLoading = false
             }
         }
+
+        // Tanlangan nom bo'yicha tarix yuklash
+        val name = selectedName ?: return@LaunchedEffect
+        val group = productsByName[name]
+        if (group.isNullOrEmpty()) return@LaunchedEffect
+
+        avgCurrentPrice = group.map { it.price }.average()
+
+        val merged = mutableListOf<PriceHistory>()
+        for (product in group) {
+            try {
+                merged += NetworkModule.apiService.getPriceHistory(product.id)
+            } catch (_: Exception) { }
+        }
+        // Sanaga qarab saralash (ISO string taqqoslash to'g'ri ishlaydi)
+        priceHistory = merged.sortedBy { it.date }
     }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { 
+                title = {
                     Column {
                         Text(stringResource(R.string.market_trends), fontWeight = FontWeight.Bold, color = Color.White)
-                        Text(stringResource(R.string.real_time_market_data), fontSize = 12.sp, color = Color.White.copy(alpha=0.8f))
+                        Text(stringResource(R.string.real_time_market_data), fontSize = 12.sp, color = Color.White.copy(alpha = 0.8f))
                     }
                 },
                 navigationIcon = {
@@ -94,95 +133,109 @@ fun MarketTrendsScreen(onBack: () -> Unit) {
         ) {
             if (isLoading) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
+                    CircularProgressIndicator(color = Color(0xFF9C27B0))
                 }
             } else {
-                // Top Card: Product Selector & Current Trend
+                // Karta 1: Mahsulot tanlash va joriy narx
                 Card(
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                     elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
                     shape = RoundedCornerShape(12.dp)
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        // Dropdown
+                        // Dropdown — faqat unique nomlar
                         Box {
                             OutlinedButton(
                                 onClick = { showDropdown = true },
                                 modifier = Modifier.fillMaxWidth()
                             ) {
-                                Text(selectedProduct?.name ?: "Select Product", color = Color.Black)
+                                Text(selectedName ?: stringResource(R.string.all_categories), color = MaterialTheme.colorScheme.onSurface)
                                 Spacer(Modifier.weight(1f))
-                                Icon(Icons.Default.ArrowDropDown, contentDescription = "Dropdown", tint = Color.Black)
+                                Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface)
                             }
                             DropdownMenu(
                                 expanded = showDropdown,
                                 onDismissRequest = { showDropdown = false }
                             ) {
-                                products.forEach { product ->
+                                productsByName.keys.sorted().forEach { name ->
                                     DropdownMenuItem(
-                                        text = { Text(product.name) },
+                                        text = { Text(name) },
                                         onClick = {
-                                            selectedProduct = product
+                                            if (name != selectedName) {
+                                                priceHistory = emptyList()
+                                                selectedName = name
+                                            }
                                             showDropdown = false
                                         }
                                     )
                                 }
                             }
                         }
-                        
+
                         Spacer(modifier = Modifier.height(16.dp))
-                        
-                        // Price & Trend Display
-                        val latestPrice = priceHistory.lastOrNull()?.price ?: selectedProduct?.price ?: 0.0
-                        var trendStr = "0.00%"
-                        var trendColor = Color.Gray
-                        
+
+                        val latestPrice = priceHistory.lastOrNull()?.price ?: avgCurrentPrice
+                        val trendColor: Color
+                        val trendStr: String
+
                         if (priceHistory.size >= 2) {
                             val current = priceHistory.last().price
                             val previous = priceHistory[priceHistory.size - 2].price
-                            if (previous > 0) {
-                                val diff = ((current - previous) / previous) * 100
-                                trendStr = String.format("%.2f%%", diff)
-                                trendColor = if (diff >= 0) Color(0xFF4CAF50) else Color(0xFFF44336)
-                                if (diff > 0) trendStr = "+$trendStr"
-                            }
+                            val diff = if (previous > 0) ((current - previous) / previous) * 100 else 0.0
+                            trendColor = if (diff >= 0) Color(0xFF4CAF50) else Color(0xFFF44336)
+                            trendStr = if (diff >= 0) "+${String.format("%.2f", diff)}%" else "${String.format("%.2f", diff)}%"
+                        } else {
+                            trendColor = Color.Gray
+                            trendStr = "—"
                         }
-                        
-                        Row(verticalAlignment = Alignment.Bottom) {
+
+                        Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
-                                text = "$${String.format("%.2f", latestPrice)}",
+                                text = CurrencyFormatter.formatPrice(latestPrice, currentCurrency, exchangeRate),
                                 style = MaterialTheme.typography.headlineMedium,
                                 color = Color(0xFF9C27B0),
                                 fontWeight = FontWeight.Bold
                             )
-                            Spacer(modifier = Modifier.width(16.dp))
-                            Text(
-                                text = trendStr,
-                                style = MaterialTheme.typography.titleMedium,
-                                color = trendColor,
-                                fontWeight = FontWeight.Bold
-                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Surface(
+                                shape = RoundedCornerShape(6.dp),
+                                color = trendColor.copy(alpha = 0.12f)
+                            ) {
+                                Text(
+                                    text = trendStr,
+                                    color = trendColor,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 14.sp,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                )
+                            }
                         }
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(stringResource(R.string.latest_price_data), style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            stringResource(R.string.latest_price_data),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 }
 
-
-                // Middle Card: Price History Chart
+                // Karta 2: Narxlar tarixi grafigi
                 Card(
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                     elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-                    modifier = Modifier.fillMaxWidth().height(250.dp),
+                    modifier = Modifier.fillMaxWidth().height(260.dp),
                     shape = RoundedCornerShape(12.dp)
                 ) {
                     Column(modifier = Modifier.padding(16.dp).fillMaxSize()) {
-                        Text(stringResource(R.string.price_history), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                        Spacer(modifier = Modifier.height(16.dp))
-                        
+                        Text(
+                            stringResource(R.string.price_history),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
                         if (priceHistory.isEmpty()) {
                             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                Text(stringResource(R.string.no_history_data), color = Color.Gray)
+                                CircularProgressIndicator(color = Color(0xFF9C27B0), modifier = Modifier.size(32.dp))
                             }
                         } else {
                             PriceChart(priceHistory = priceHistory, modifier = Modifier.fillMaxSize())
@@ -190,9 +243,9 @@ fun MarketTrendsScreen(onBack: () -> Unit) {
                     }
                 }
 
-                // Bottom Card: Market Insights
+                // Karta 3: Market Insights
                 Card(
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                     elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth()
@@ -201,20 +254,19 @@ fun MarketTrendsScreen(onBack: () -> Unit) {
                         Text(stringResource(R.string.market_insights), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        val maxPrice = priceHistory.maxOfOrNull { it.price } ?: selectedProduct?.price ?: 0.0
-                        val minPrice = priceHistory.minOfOrNull { it.price } ?: selectedProduct?.price ?: 0.0
-                        val avgPrice = if (priceHistory.isNotEmpty()) priceHistory.map { it.price }.average() else selectedProduct?.price ?: 0.0
+                        val maxPrice = priceHistory.maxOfOrNull { it.price } ?: avgCurrentPrice
+                        val minPrice = priceHistory.minOfOrNull { it.price } ?: avgCurrentPrice
+                        val avgPrice = if (priceHistory.isNotEmpty()) priceHistory.map { it.price }.average() else avgCurrentPrice
 
-                        InsightRow(stringResource(R.string.all_time_high), String.format("$%.2f", maxPrice), Color(0xFF4CAF50))
+                        InsightRow(stringResource(R.string.all_time_high), CurrencyFormatter.formatPrice(maxPrice, currentCurrency, exchangeRate), Color(0xFF4CAF50))
                         Spacer(modifier = Modifier.height(12.dp))
-                        InsightRow(stringResource(R.string.all_time_low), String.format("$%.2f", minPrice), Color(0xFFF44336))
+                        InsightRow(stringResource(R.string.all_time_low), CurrencyFormatter.formatPrice(minPrice, currentCurrency, exchangeRate), Color(0xFFF44336))
                         Spacer(modifier = Modifier.height(12.dp))
-                        InsightRow(stringResource(R.string.average_price), String.format("$%.2f", avgPrice), Color(0xFF9C27B0))
+                        InsightRow(stringResource(R.string.average_price), CurrencyFormatter.formatPrice(avgPrice, currentCurrency, exchangeRate), Color(0xFF9C27B0))
                     }
                 }
 
-                Spacer(modifier = Modifier.height(32.dp)) // padding for bottom nav
-
+                Spacer(modifier = Modifier.height(32.dp))
             }
         }
     }
@@ -226,7 +278,7 @@ fun InsightRow(label: String, value: String, valueColor: Color) {
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(label, color = Color.Gray, fontSize = 16.sp)
+        Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 16.sp)
         Text(value, color = valueColor, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
     }
 }
@@ -234,122 +286,121 @@ fun InsightRow(label: String, value: String, valueColor: Color) {
 @Composable
 fun PriceChart(priceHistory: List<PriceHistory>, modifier: Modifier = Modifier) {
     if (priceHistory.isEmpty()) return
-    
-    // Simply to format the dates. Real world we might parse ISO 8601
-    val parser = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault())
-    val formatter = SimpleDateFormat("MMM d", Locale.getDefault())
-    
+
+    // "2026-03-13T17:47:54.342000" → "Mar 13" formatiga o'girish
+    val dateParser = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+    val dateFormatter = SimpleDateFormat("MMM d", Locale.getDefault())
+
     val prices = priceHistory.map { it.price.toFloat() }
-    val maxPrice = (prices.maxOrNull() ?: 10f) * 1.2f // Add 20% breathing room
-    val minPrice = 0f // Start Y axis from 0 for simplicity
-    
+    val rawMax = prices.maxOrNull() ?: 1f
+    val rawMin = prices.minOrNull() ?: 0f
+    val padding = (rawMax - rawMin) * 0.15f  // 15% padding yuqori-pastdan
+    val chartMax = rawMax + padding
+    val chartMin = (rawMin - padding).coerceAtLeast(0f)
+    val priceRange = (chartMax - chartMin).let { if (it == 0f) 1f else it }
+
+    val purple = Color(0xFF9C27B0)
+
     Canvas(modifier = modifier) {
-        val width = size.width
-        val height = size.height
-        val padding = 40f
-        
-        val drawingWidth = width - padding
-        val drawingHeight = height - padding
-        
-        // Draw Y axis Grid Lines
-        val steps = 5
-        for (i in 0..steps) {
-            val y = drawingHeight - (i * drawingHeight / steps)
-            val value = minPrice + (maxPrice - minPrice) * i / steps
-            
+        val w = size.width
+        val h = size.height
+        val leftPad = 52f    // Y labels uchun
+        val bottomPad = 30f  // X labels uchun
+        val chartW = w - leftPad
+        val chartH = h - bottomPad
+
+        // --- Y grid + labels ---
+        val ySteps = 4
+        for (i in 0..ySteps) {
+            val ratio = i.toFloat() / ySteps
+            val y = chartH - ratio * chartH
+            val price = chartMin + ratio * priceRange
+
             drawLine(
-                color = Color.LightGray.copy(alpha = 0.5f),
-                start = Offset(padding, y),
-                end = Offset(width, y),
+                color = Color.LightGray.copy(alpha = 0.4f),
+                start = Offset(leftPad, y),
+                end = Offset(w, y),
                 strokeWidth = 1f
             )
-            
             drawContext.canvas.nativeCanvas.drawText(
-                String.format("%.0f", value),
+                String.format("%.2f", price),
                 0f,
-                y + 10f,
+                y + 9f,
                 android.graphics.Paint().apply {
                     color = android.graphics.Color.GRAY
-                    textSize = 24f
+                    textSize = 22f
+                    isAntiAlias = true
                 }
             )
         }
-        
-        if (prices.isEmpty()) return@Canvas
 
-        // Draw X Axis dates and Data Points
-        val xStep = if (prices.size > 1) drawingWidth / (prices.size - 1).toFloat() else drawingWidth / 2f
-        
-        val points = mutableListOf<Offset>()
-        for (i in prices.indices) {
-            val x = if (prices.size > 1) padding + (i * xStep) else padding + xStep
-            
-            val priceRange = maxPrice - minPrice
-            val safeRange = if (priceRange == 0f) 1f else priceRange
-            val y = drawingHeight - ((prices[i] - minPrice) / safeRange * drawingHeight)
-            
-            points.add(Offset(x, y))
-            
-            // Try formatting date
-            var dateStr = "Date ${i+1}"
-            try {
-                if (i >= 0 && i < priceHistory.size) {
-                    val dateObj = parser.parse(priceHistory[i].date)
-                    if (dateObj != null) {
-                        dateStr = formatter.format(dateObj)
-                    }
+        if (prices.size < 2) return@Canvas
+
+        // --- Nuqta koordinatalari ---
+        val xStep = chartW / (prices.size - 1).toFloat()
+        val points = prices.mapIndexed { i, price ->
+            val x = leftPad + i * xStep
+            val y = chartH - ((price - chartMin) / priceRange) * chartH
+            Offset(x, y)
+        }
+
+        // --- Gradient fill ---
+        val fillPath = Path().apply {
+            moveTo(points.first().x, chartH)
+            points.forEach { lineTo(it.x, it.y) }
+            lineTo(points.last().x, chartH)
+            close()
+        }
+        drawPath(
+            path = fillPath,
+            brush = Brush.verticalGradient(
+                colors = listOf(purple.copy(alpha = 0.25f), purple.copy(alpha = 0.0f)),
+                startY = 0f,
+                endY = chartH
+            )
+        )
+
+        // --- Chiziq ---
+        val linePath = Path().apply {
+            moveTo(points.first().x, points.first().y)
+            points.drop(1).forEach { lineTo(it.x, it.y) }
+        }
+        drawPath(linePath, color = purple, style = Stroke(width = 3.5f))
+
+        // --- X labels (faqat 6 ta) ---
+        val labelIndices = when {
+            prices.size <= 6 -> prices.indices.toList()
+            else -> {
+                val step = (prices.size - 1) / 5
+                (0..5).map { (it * step).coerceAtMost(prices.size - 1) }
+            }
+        }
+        labelIndices.forEach { i ->
+            val dateStr = try {
+                val iso = priceHistory[i].date.take(10) // "2026-03-13"
+                val d = dateParser.parse(iso)
+                if (d != null) dateFormatter.format(d) else "—"
+            } catch (_: Exception) { "—" }
+
+            drawContext.canvas.nativeCanvas.drawText(
+                dateStr,
+                points[i].x - 18f,
+                h,
+                android.graphics.Paint().apply {
+                    color = android.graphics.Color.GRAY
+                    textSize = 22f
+                    isAntiAlias = true
                 }
-            } catch (e: Exception) { }
-            
-            // Safe calculation for skip step to prevent index exceptions
-            val labelCount = prices.size
-            val skipStep = if (labelCount > 5) labelCount / 5 else 1
-            
-            // Draw X Axis labels
-            if (labelCount <= 5 || i % skipStep == 0 || i == labelCount - 1) {
-                drawContext.canvas.nativeCanvas.drawText(
-                    dateStr,
-                    x - 20f,
-                    height,
-                    android.graphics.Paint().apply {
-                        color = android.graphics.Color.GRAY
-                        textSize = 24f
-                    }
-                )
-            }
-        }
-        
-        // Draw Line connecting points
-        if (points.size > 1) {
-            val path = Path()
-            path.moveTo(points.first().x, points.first().y)
-            for (i in 1 until points.size) {
-                path.lineTo(points[i].x, points[i].y)
-            }
-            drawPath(
-                path = path,
-                color = Color(0xFF9C27B0), // Purple line
-                style = Stroke(width = 4f)
-            )
-        } else if (points.size == 1) {
-             // Draw a simple line spanning the middle for a single point
-             val path = Path()
-             path.moveTo(padding, points.first().y)
-             path.lineTo(width, points.first().y)
-             drawPath(
-                path = path,
-                color = Color(0xFF9C27B0).copy(alpha=0.3f), 
-                style = Stroke(width = 4f)
             )
         }
-        
-        // Draw circles on points
-        for (point in points) {
-            drawCircle(
-                color = Color(0xFF9C27B0),
-                radius = 6f,
-                center = point
-            )
+
+        // --- Nuqtalar ---
+        points.forEachIndexed { i, point ->
+            // Faqat label nuqtalarida yoki oxirgisida
+            if (i in labelIndices || i == prices.size - 1) {
+                drawCircle(color = Color.White, radius = 7f, center = point)
+                drawCircle(color = purple, radius = 5f, center = point)
+            }
         }
     }
 }

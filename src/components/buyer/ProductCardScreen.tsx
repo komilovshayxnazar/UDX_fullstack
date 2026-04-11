@@ -95,12 +95,12 @@ export function ProductCardScreen({
   };
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-background">
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-white px-4 py-4 shadow-sm">
+      <div className="sticky top-0 z-10 bg-background px-4 py-4 shadow-sm">
         <button
           onClick={onBack}
-          className="flex items-center gap-2 text-gray-600 hover:text-gray-900"
+          className="flex items-center gap-2 text-muted-foreground hover:text-foreground"
         >
           <ArrowLeft className="h-5 w-5" />
           Back
@@ -109,7 +109,7 @@ export function ProductCardScreen({
 
       {/* Image Gallery */}
       <div className="relative">
-        <div className="aspect-square w-full overflow-hidden bg-gray-100">
+        <div className="aspect-square w-full overflow-hidden bg-muted">
           <motion.img
             key={currentImageIndex}
             initial={{ opacity: 0 }}
@@ -127,7 +127,7 @@ export function ProductCardScreen({
                 key={index}
                 onClick={() => setCurrentImageIndex(index)}
                 className={`h-2 rounded-full transition-all ${
-                  index === currentImageIndex ? 'w-6 bg-white' : 'w-2 bg-white/50'
+                  index === currentImageIndex ? 'w-6 bg-background' : 'w-2 bg-background/50'
                 }`}
               />
             ))}
@@ -150,27 +150,27 @@ export function ProductCardScreen({
             <div className="flex items-center gap-1">
               <Star className="h-5 w-5 fill-yellow-400 text-yellow-400" />
               <span>{product.rating}</span>
-              <span className="text-gray-600">({product.reviewCount} reviews)</span>
+              <span className="text-muted-foreground">({product.reviewCount} reviews)</span>
             </div>
-            <div className="flex items-center gap-1 text-gray-600">
+            <div className="flex items-center gap-1 text-muted-foreground">
               <MapPin className="h-5 w-5" />
               <span>{product.distance} km</span>
             </div>
           </div>
           <div className="mb-4">
             <span className="text-[#af47ff]">${product.price}</span>
-            <span className="text-gray-600"> / {product.unit}</span>
+            <span className="text-muted-foreground"> / {product.unit}</span>
           </div>
         </div>
 
         {/* Description */}
         <div className="mb-6">
           <h3 className="mb-2">Description</h3>
-          <p className="text-gray-600">{product.description}</p>
+          <p className="text-muted-foreground">{product.description}</p>
         </div>
 
         {/* Farmer Info */}
-        <div className="mb-6 rounded-2xl bg-gray-50 p-4">
+        <div className="mb-6 rounded-2xl bg-background p-4">
           <h3 className="mb-3">Sold by</h3>
           <div className="mb-4 flex items-center gap-3">
             <img
@@ -180,7 +180,7 @@ export function ProductCardScreen({
             />
             <div className="flex-1">
               <h4>{farmer.name}</h4>
-              <div className="flex items-center gap-1 text-gray-600">
+              <div className="flex items-center gap-1 text-muted-foreground">
                 <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
                 <span>{farmer.rating} ({farmer.reviewCount} reviews)</span>
               </div>
@@ -225,7 +225,7 @@ export function ProductCardScreen({
               >
                 <Plus className="h-4 w-4" />
               </Button>
-              <span className="text-gray-600">{product.unit}(s)</span>
+              <span className="text-muted-foreground">{product.unit}(s)</span>
             </div>
           </div>
         )}
@@ -271,7 +271,7 @@ export function ProductCardScreen({
                     </div>
                     <span>Voice message ({formatTime(recordingTime)})</span>
                   </div>
-                  <Play className="h-5 w-5 text-gray-600" />
+                  <Play className="h-5 w-5 text-muted-foreground" />
                 </div>
                 <div className="flex gap-2">
                   <Button
@@ -315,7 +315,7 @@ export function ProductCardScreen({
                     className={`h-8 w-8 ${
                       rating <= productRating
                         ? 'fill-yellow-400 text-yellow-400'
-                        : 'text-gray-300'
+                        : 'text-muted-foreground'
                     }`}
                   />
                 </button>
@@ -339,7 +339,7 @@ export function ProductCardScreen({
                     className={`h-8 w-8 ${
                       rating <= sellerRating
                         ? 'fill-blue-400 text-blue-400'
-                        : 'text-gray-300'
+                        : 'text-muted-foreground'
                     }`}
                   />
                 </button>

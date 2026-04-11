@@ -103,7 +103,7 @@ export function ManageProductsScreen({ onBack, products = initialProducts, onPro
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-background">
       {/* Header */}
       <div className="sticky top-0 z-10 bg-gradient-to-r from-[#af47ff] to-[#8b2dd1] px-4 py-4 text-white shadow-lg">
         <button
@@ -120,7 +120,7 @@ export function ManageProductsScreen({ onBack, products = initialProducts, onPro
           </div>
           <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
             <DialogTrigger asChild>
-              <Button className="bg-white text-[#af47ff] hover:bg-gray-100">
+              <Button className="bg-background text-[#af47ff] hover:bg-accent">
                 <Plus className="mr-2 h-4 w-4" />
                 Add
               </Button>
@@ -221,7 +221,7 @@ export function ManageProductsScreen({ onBack, products = initialProducts, onPro
                       {product.inStock ? 'In Stock' : 'Out of Stock'}
                     </Badge>
                   </div>
-                  <div className="mb-3 flex gap-4 text-gray-600">
+                  <div className="mb-3 flex gap-4 text-muted-foreground">
                     <span className="flex items-center gap-1">
                       <Eye className="h-4 w-4" />
                       {product.views}

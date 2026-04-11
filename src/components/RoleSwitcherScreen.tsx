@@ -34,14 +34,14 @@ export function RoleSwitcherScreen({ onSelectMode }: RoleSwitcherScreenProps) {
               onClick={() => onSelectMode('buyer')}
               className="cursor-pointer"
             >
-              <div className="rounded-2xl bg-white p-6 shadow-lg transition-all hover:shadow-xl">
+              <div className="rounded-2xl bg-background p-6 shadow-lg transition-all hover:shadow-xl">
                 <div className="flex items-center gap-4">
                   <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-[#af47ff] to-[#9935e6]">
                     <ShoppingBag className="h-8 w-8 text-white" />
                   </div>
                   <div className="flex-1 text-left">
                     <h2 className="mb-1">Buyer</h2>
-                    <p className="text-gray-600">Browse and purchase products</p>
+                    <p className="text-muted-foreground">Browse and purchase products</p>
                   </div>
                 </div>
               </div>
@@ -54,14 +54,14 @@ export function RoleSwitcherScreen({ onSelectMode }: RoleSwitcherScreenProps) {
               onClick={() => onSelectMode('seller')}
               className="cursor-pointer"
             >
-              <div className="rounded-2xl bg-white p-6 shadow-lg transition-all hover:shadow-xl">
+              <div className="rounded-2xl bg-background p-6 shadow-lg transition-all hover:shadow-xl">
                 <div className="flex items-center gap-4">
                   <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-[#af47ff] to-[#9935e6]">
                     <Store className="h-8 w-8 text-white" />
                   </div>
                   <div className="flex-1 text-left">
                     <h2 className="mb-1">Seller</h2>
-                    <p className="text-gray-600">Manage and sell your products</p>
+                    <p className="text-muted-foreground">Manage and sell your products</p>
                   </div>
                 </div>
               </div>

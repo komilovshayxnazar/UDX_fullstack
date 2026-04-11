@@ -66,8 +66,8 @@ export function UnifiedProfileScreen({ onComplete, onBack }: UnifiedProfileScree
   return (
     <div className="flex min-h-screen flex-col bg-gradient-to-br from-[#af47ff] via-[#9935e6] to-[#7c24cc]">
       {/* Header */}
-      <div className="flex items-center justify-between bg-white/10 p-4 backdrop-blur-sm">
-        <button onClick={handleBack} className="rounded-full p-2 hover:bg-white/10">
+      <div className="flex items-center justify-between bg-background/10 p-4 backdrop-blur-sm">
+        <button onClick={handleBack} className="rounded-full p-2 hover:bg-background/10">
           <ArrowLeft className="h-6 w-6 text-white" />
         </button>
         <h2 className="text-white">
@@ -81,9 +81,9 @@ export function UnifiedProfileScreen({ onComplete, onBack }: UnifiedProfileScree
       {/* Progress Indicator */}
       <div className="px-6 pt-4">
         <div className="flex gap-2">
-          <div className={`h-1 flex-1 rounded-full ${step === 'personal' ? 'bg-white' : 'bg-white/30'}`} />
-          <div className={`h-1 flex-1 rounded-full ${step === 'buyer' ? 'bg-white' : 'bg-white/30'}`} />
-          <div className={`h-1 flex-1 rounded-full ${step === 'seller' ? 'bg-white' : 'bg-white/30'}`} />
+          <div className={`h-1 flex-1 rounded-full ${step === 'personal' ? 'bg-background' : 'bg-background/30'}`} />
+          <div className={`h-1 flex-1 rounded-full ${step === 'buyer' ? 'bg-background' : 'bg-background/30'}`} />
+          <div className={`h-1 flex-1 rounded-full ${step === 'seller' ? 'bg-background' : 'bg-background/30'}`} />
         </div>
       </div>
 
@@ -98,13 +98,13 @@ export function UnifiedProfileScreen({ onComplete, onBack }: UnifiedProfileScree
         >
           {/* Personal Information */}
           {step === 'personal' && (
-            <div className="space-y-6 rounded-2xl bg-white p-6 shadow-xl">
+            <div className="space-y-6 rounded-2xl bg-background p-6 shadow-xl">
               <div className="text-center">
                 <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-[#af47ff] to-[#9935e6]">
                   <User className="h-8 w-8 text-white" />
                 </div>
                 <h3 className="mb-2">Tell us about yourself</h3>
-                <p className="text-gray-600">This information will be used for both buying and selling</p>
+                <p className="text-muted-foreground">This information will be used for both buying and selling</p>
               </div>
 
               <div className="space-y-4">
@@ -122,7 +122,7 @@ export function UnifiedProfileScreen({ onComplete, onBack }: UnifiedProfileScree
                 <div>
                   <Label htmlFor="location">Location *</Label>
                   <div className="relative mt-1">
-                    <MapPin className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                    <MapPin className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                     <Input
                       id="location"
                       value={location}
@@ -138,13 +138,13 @@ export function UnifiedProfileScreen({ onComplete, onBack }: UnifiedProfileScree
 
           {/* Buyer Profile */}
           {step === 'buyer' && (
-            <div className="space-y-6 rounded-2xl bg-white p-6 shadow-xl">
+            <div className="space-y-6 rounded-2xl bg-background p-6 shadow-xl">
               <div className="text-center">
                 <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-[#af47ff] to-[#9935e6]">
                   <Briefcase className="h-8 w-8 text-white" />
                 </div>
                 <h3 className="mb-2">Buyer Preferences</h3>
-                <p className="text-gray-600">Help us personalize your buying experience</p>
+                <p className="text-muted-foreground">Help us personalize your buying experience</p>
               </div>
 
               <div className="space-y-4">
@@ -157,7 +157,7 @@ export function UnifiedProfileScreen({ onComplete, onBack }: UnifiedProfileScree
                         onClick={() => toggleInterest(category)}
                         className={`rounded-full px-4 py-2 transition-all ${buyerInterests.includes(category)
                             ? 'bg-[#af47ff] text-white'
-                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                            : 'bg-muted text-foreground hover:bg-accent'
                           }`}
                       >
                         {category}
@@ -185,13 +185,13 @@ export function UnifiedProfileScreen({ onComplete, onBack }: UnifiedProfileScree
 
           {/* Seller Profile */}
           {step === 'seller' && (
-            <div className="space-y-6 rounded-2xl bg-white p-6 shadow-xl">
+            <div className="space-y-6 rounded-2xl bg-background p-6 shadow-xl">
               <div className="text-center">
                 <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-[#af47ff] to-[#9935e6]">
                   <Store className="h-8 w-8 text-white" />
                 </div>
                 <h3 className="mb-2">Seller Profile</h3>
-                <p className="text-gray-600">Set up your selling business</p>
+                <p className="text-muted-foreground">Set up your selling business</p>
               </div>
 
               <div className="space-y-4">
@@ -239,7 +239,7 @@ export function UnifiedProfileScreen({ onComplete, onBack }: UnifiedProfileScree
       </div>
 
       {/* Footer */}
-      <div className="border-t border-white/10 bg-white/10 p-4 backdrop-blur-sm">
+      <div className="border-t border-white/10 bg-background/10 p-4 backdrop-blur-sm">
         <Button
           onClick={handleNext}
           disabled={
@@ -247,7 +247,7 @@ export function UnifiedProfileScreen({ onComplete, onBack }: UnifiedProfileScree
             (step === 'buyer' && buyerInterests.length === 0) ||
             (step === 'seller' && !businessName)
           }
-          className="w-full bg-white text-[#af47ff] hover:bg-white/90"
+          className="w-full bg-background text-[#af47ff] hover:bg-background/90"
         >
           {step === 'seller' ? 'Complete Profile' : 'Continue'}
         </Button>

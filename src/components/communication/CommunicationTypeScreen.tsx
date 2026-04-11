@@ -34,13 +34,13 @@ export function CommunicationTypeScreen({ farmerName, onBack, onSelectType }: Co
             onClick={() => onSelectType('chat')}
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
-            className="w-full rounded-2xl bg-white p-6 text-left transition-shadow hover:shadow-xl"
+            className="w-full rounded-2xl bg-background p-6 text-left transition-shadow hover:shadow-xl"
           >
             <div className="mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-[#af47ff]/10">
               <MessageCircle className="h-8 w-8 text-[#af47ff]" />
             </div>
             <h3 className="mb-2">Text Chat</h3>
-            <p className="text-gray-600">
+            <p className="text-muted-foreground">
               Send and receive messages with automatic translation
             </p>
           </motion.button>
@@ -49,13 +49,13 @@ export function CommunicationTypeScreen({ farmerName, onBack, onSelectType }: Co
             onClick={() => onSelectType('audio')}
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
-            className="w-full rounded-2xl bg-white p-6 text-left transition-shadow hover:shadow-xl"
+            className="w-full rounded-2xl bg-background p-6 text-left transition-shadow hover:shadow-xl"
           >
             <div className="mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-[#af47ff]/10">
               <Phone className="h-8 w-8 text-[#af47ff]" />
             </div>
             <h3 className="mb-2">Audio Call</h3>
-            <p className="text-gray-600">
+            <p className="text-muted-foreground">
               Voice call with real-time translation
             </p>
           </motion.button>
@@ -64,13 +64,13 @@ export function CommunicationTypeScreen({ farmerName, onBack, onSelectType }: Co
             onClick={() => onSelectType('video')}
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
-            className="w-full rounded-2xl bg-white p-6 text-left transition-shadow hover:shadow-xl"
+            className="w-full rounded-2xl bg-background p-6 text-left transition-shadow hover:shadow-xl"
           >
             <div className="mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-[#af47ff]/10">
               <Video className="h-8 w-8 text-[#af47ff]" />
             </div>
             <h3 className="mb-2">Video Chat</h3>
-            <p className="text-gray-600">
+            <p className="text-muted-foreground">
               Face-to-face conversation with live subtitles and translation
             </p>
           </motion.button>

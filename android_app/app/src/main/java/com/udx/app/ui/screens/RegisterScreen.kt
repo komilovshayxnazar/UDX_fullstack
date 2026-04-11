@@ -23,10 +23,13 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import android.content.Intent
+import android.net.Uri
+import androidx.compose.ui.platform.LocalContext
 import com.udx.app.R
 import com.udx.app.data.NetworkModule
-import com.udx.app.data.TelegramOtpRequest
-import com.udx.app.data.TelegramOtpVerify
+import com.udx.app.data.PhoneOtpInit
+import com.udx.app.data.PhoneOtpVerify
 import com.udx.app.data.UserCreate
 import kotlinx.coroutines.launch
 import retrofit2.HttpException
@@ -47,9 +50,10 @@ fun RegisterScreen(
     var phoneNumber by remember { mutableStateOf("") }
     var selectedRole by remember { mutableStateOf("buyer") }
 
-    // Step 2 — OTP
-    var telegramUsername by remember { mutableStateOf("") }
-    var otpSent by remember { mutableStateOf(false) }
+    // Step 2 — OTP (phone-based deep link flow)
+    var otpToken by remember { mutableStateOf("") }
+    var otpBotUsername by remember { mutableStateOf("udxregister_bot") }
+    var deepLinkOpened by remember { mutableStateOf(false) }
     var otpCode by remember { mutableStateOf("") }
 
     // Step 3 — PASSWORD
@@ -62,6 +66,7 @@ fun RegisterScreen(
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
     val passwordsDontMatch = stringResource(R.string.passwords_dont_match)
 
     val brush = Brush.verticalGradient(
@@ -201,15 +206,35 @@ fun RegisterScreen(
                                     onClick = {
                                         errorMessage = null
                                         if (name.isBlank() || phoneNumber.isBlank()) {
-                                            errorMessage = "Please fill in all fields"
+                                            errorMessage = "Iltimos, barcha maydonlarni to'ldiring"
                                             return@Button
                                         }
-                                        step = RegisterStep.OTP
+                                        isLoading = true
+                                        scope.launch {
+                                            try {
+                                                val resp = NetworkModule.apiService.initPhoneOtp(
+                                                    PhoneOtpInit(phoneNumber)
+                                                )
+                                                otpToken = resp.token
+                                                otpBotUsername = resp.botUsername
+                                                deepLinkOpened = false
+                                                step = RegisterStep.OTP
+                                            } catch (e: Exception) {
+                                                errorMessage = e.message ?: "OTP yuborishda xato"
+                                            } finally {
+                                                isLoading = false
+                                            }
+                                        }
                                     },
                                     modifier = Modifier.fillMaxWidth().height(50.dp),
+                                    enabled = !isLoading,
                                     shape = RoundedCornerShape(12.dp)
                                 ) {
-                                    Text(stringResource(R.string.continue_btn), fontSize = MaterialTheme.typography.titleMedium.fontSize)
+                                    if (isLoading) {
+                                        CircularProgressIndicator(modifier = Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary)
+                                    } else {
+                                        Text(stringResource(R.string.continue_btn), fontSize = MaterialTheme.typography.titleMedium.fontSize)
+                                    }
                                 }
 
                                 Spacer(modifier = Modifier.height(16.dp))
@@ -244,142 +269,101 @@ fun RegisterScreen(
                             }
 
                             RegisterStep.OTP -> {
-                                if (!otpSent) {
+                                Text(
+                                    text = "Telegram orqali tasdiqlash",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    textAlign = TextAlign.Center
+                                )
+
+                                Spacer(modifier = Modifier.height(16.dp))
+
+                                // Step 1: open Telegram deep link
+                                Button(
+                                    onClick = {
+                                        val uri = Uri.parse("tg://resolve?domain=$otpBotUsername&start=$otpToken")
+                                        val intent = Intent(Intent.ACTION_VIEW, uri)
+                                        context.startActivity(intent)
+                                        deepLinkOpened = true
+                                    },
+                                    modifier = Modifier.fillMaxWidth().height(50.dp),
+                                    shape = RoundedCornerShape(12.dp),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = MaterialTheme.colorScheme.secondary
+                                    )
+                                ) {
+                                    Icon(Icons.Filled.Send, contentDescription = null, modifier = Modifier.size(18.dp))
+                                    Spacer(Modifier.width(8.dp))
+                                    Text("Telegramga o'tish", fontSize = MaterialTheme.typography.titleMedium.fontSize)
+                                }
+
+                                if (deepLinkOpened) {
+                                    Spacer(modifier = Modifier.height(8.dp))
                                     Text(
-                                        text = stringResource(R.string.telegram_hint),
-                                        style = MaterialTheme.typography.bodyMedium,
+                                        text = "Telegramdan kelgan 6 xonali kodni kiriting",
+                                        style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         textAlign = TextAlign.Center
                                     )
+                                }
 
-                                    Spacer(modifier = Modifier.height(24.dp))
+                                Spacer(modifier = Modifier.height(16.dp))
 
-                                    OutlinedTextField(
-                                        value = telegramUsername,
-                                        onValueChange = { telegramUsername = it.trimStart('@') },
-                                        label = { Text(stringResource(R.string.telegram_username)) },
-                                        placeholder = { Text("username") },
-                                        leadingIcon = { Text("@", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(start = 12.dp)) },
-                                        modifier = Modifier.fillMaxWidth(),
-                                        singleLine = true,
-                                        shape = RoundedCornerShape(12.dp)
-                                    )
+                                OutlinedTextField(
+                                    value = otpCode,
+                                    onValueChange = { if (it.length <= 6 && it.all(Char::isDigit)) otpCode = it },
+                                    label = { Text(stringResource(R.string.enter_otp_code)) },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    singleLine = true,
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+                                    shape = RoundedCornerShape(12.dp)
+                                )
 
-                                    if (errorMessage != null) {
-                                        Spacer(modifier = Modifier.height(8.dp))
-                                        Text(
-                                            text = errorMessage!!,
-                                            color = MaterialTheme.colorScheme.error,
-                                            style = MaterialTheme.typography.bodySmall
-                                        )
-                                    }
-
-                                    Spacer(modifier = Modifier.height(24.dp))
-
-                                    Button(
-                                        onClick = {
-                                            errorMessage = null
-                                            if (telegramUsername.isBlank()) {
-                                                errorMessage = "Please enter your Telegram username"
-                                                return@Button
-                                            }
-                                            isLoading = true
-                                            scope.launch {
-                                                try {
-                                                    NetworkModule.apiService.requestTelegramOtp(
-                                                        TelegramOtpRequest(telegramUsername)
-                                                    )
-                                                    otpSent = true
-                                                } catch (e: Exception) {
-                                                    errorMessage = e.message ?: "Failed to send OTP"
-                                                } finally {
-                                                    isLoading = false
-                                                }
-                                            }
-                                        },
-                                        modifier = Modifier.fillMaxWidth().height(50.dp),
-                                        enabled = !isLoading,
-                                        shape = RoundedCornerShape(12.dp)
-                                    ) {
-                                        if (isLoading) {
-                                            CircularProgressIndicator(modifier = Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary)
-                                        } else {
-                                            Text(stringResource(R.string.send_code), fontSize = MaterialTheme.typography.titleMedium.fontSize)
-                                        }
-                                    }
-                                } else {
-                                    Text(
-                                        text = stringResource(R.string.otp_sent_to, telegramUsername),
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurface,
-                                        textAlign = TextAlign.Center
-                                    )
-
-                                    Spacer(modifier = Modifier.height(24.dp))
-
-                                    OutlinedTextField(
-                                        value = otpCode,
-                                        onValueChange = { if (it.length <= 6 && it.all(Char::isDigit)) otpCode = it },
-                                        label = { Text(stringResource(R.string.enter_otp_code)) },
-                                        modifier = Modifier.fillMaxWidth(),
-                                        singleLine = true,
-                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
-                                        shape = RoundedCornerShape(12.dp)
-                                    )
-
-                                    if (errorMessage != null) {
-                                        Spacer(modifier = Modifier.height(8.dp))
-                                        Text(
-                                            text = errorMessage!!,
-                                            color = MaterialTheme.colorScheme.error,
-                                            style = MaterialTheme.typography.bodySmall
-                                        )
-                                    }
-
+                                if (errorMessage != null) {
                                     Spacer(modifier = Modifier.height(8.dp))
+                                    Text(
+                                        text = errorMessage!!,
+                                        color = MaterialTheme.colorScheme.error,
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+                                }
 
-                                    TextButton(
-                                        onClick = {
-                                            otpSent = false
-                                            otpCode = ""
-                                            errorMessage = null
+                                Spacer(modifier = Modifier.height(16.dp))
+
+                                Button(
+                                    onClick = {
+                                        errorMessage = null
+                                        if (otpCode.length != 6) {
+                                            errorMessage = "6 xonali kodni kiriting"
+                                            return@Button
                                         }
-                                    ) {
-                                        Text(stringResource(R.string.change_telegram))
-                                    }
-
-                                    Spacer(modifier = Modifier.height(16.dp))
-
-                                    Button(
-                                        onClick = {
-                                            errorMessage = null
-                                            if (otpCode.length != 6) {
-                                                errorMessage = "Enter the 6-digit code"
-                                                return@Button
+                                        isLoading = true
+                                        scope.launch {
+                                            try {
+                                                NetworkModule.apiService.verifyPhoneOtp(
+                                                    PhoneOtpVerify(phoneNumber, otpCode)
+                                                )
+                                                step = RegisterStep.PASSWORD
+                                            } catch (e: HttpException) {
+                                                val errorBody = e.response()?.errorBody()?.string()
+                                                errorMessage = try {
+                                                    org.json.JSONObject(errorBody ?: "").getString("detail")
+                                                } catch (_: Exception) { "Noto'g'ri kod" }
+                                            } catch (e: Exception) {
+                                                errorMessage = e.message ?: "Noto'g'ri kod"
+                                            } finally {
+                                                isLoading = false
                                             }
-                                            isLoading = true
-                                            scope.launch {
-                                                try {
-                                                    NetworkModule.apiService.verifyTelegramOtp(
-                                                        TelegramOtpVerify(telegramUsername, otpCode)
-                                                    )
-                                                    step = RegisterStep.PASSWORD
-                                                } catch (e: Exception) {
-                                                    errorMessage = e.message ?: "Invalid code"
-                                                } finally {
-                                                    isLoading = false
-                                                }
-                                            }
-                                        },
-                                        modifier = Modifier.fillMaxWidth().height(50.dp),
-                                        enabled = !isLoading && otpCode.length == 6,
-                                        shape = RoundedCornerShape(12.dp)
-                                    ) {
-                                        if (isLoading) {
-                                            CircularProgressIndicator(modifier = Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary)
-                                        } else {
-                                            Text(stringResource(R.string.verify), fontSize = MaterialTheme.typography.titleMedium.fontSize)
                                         }
+                                    },
+                                    modifier = Modifier.fillMaxWidth().height(50.dp),
+                                    enabled = !isLoading && otpCode.length == 6,
+                                    shape = RoundedCornerShape(12.dp)
+                                ) {
+                                    if (isLoading) {
+                                        CircularProgressIndicator(modifier = Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary)
+                                    } else {
+                                        Text(stringResource(R.string.verify), fontSize = MaterialTheme.typography.titleMedium.fontSize)
                                     }
                                 }
 
@@ -387,8 +371,9 @@ fun RegisterScreen(
 
                                 TextButton(onClick = {
                                     step = RegisterStep.INFO
-                                    otpSent = false
                                     otpCode = ""
+                                    otpToken = ""
+                                    deepLinkOpened = false
                                     errorMessage = null
                                 }) {
                                     Text(stringResource(R.string.back))
@@ -490,7 +475,7 @@ fun RegisterScreen(
                                                         password = password,
                                                         name = name.takeIf { it.isNotBlank() },
                                                         role = selectedRole,
-                                                        telegramUsername = telegramUsername
+                                                        telegramUsername = null
                                                     )
                                                 )
                                                 isLoading = false
@@ -531,7 +516,6 @@ fun RegisterScreen(
 
                                 TextButton(onClick = {
                                     step = RegisterStep.OTP
-                                    otpSent = true
                                     errorMessage = null
                                 }) {
                                     Text(stringResource(R.string.back))

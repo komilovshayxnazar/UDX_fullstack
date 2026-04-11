@@ -98,18 +98,18 @@ export function ChatDetailScreen({ chatId, onBack }: ChatDetailScreenProps) {
             <div className="flex h-screen items-center justify-center">
                 <div className="text-center">
                     <div className="mb-4 h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto"></div>
-                    <p className="text-gray-600">Loading messages...</p>
+                    <p className="text-muted-foreground">Loading messages...</p>
                 </div>
             </div>
         );
     }
 
     return (
-        <div className="flex h-screen flex-col bg-gray-50">
+        <div className="flex h-screen flex-col bg-background">
             {/* Header */}
-            <div className="sticky top-0 z-10 bg-white px-4 py-3 shadow-sm">
+            <div className="sticky top-0 z-10 bg-background px-4 py-3 shadow-sm">
                 <div className="flex items-center gap-3">
-                    <button onClick={onBack} className="rounded-full p-2 hover:bg-gray-100">
+                    <button onClick={onBack} className="rounded-full p-2 hover:bg-accent">
                         <ArrowLeft className="h-5 w-5" />
                     </button>
 
@@ -120,16 +120,16 @@ export function ChatDetailScreen({ chatId, onBack }: ChatDetailScreenProps) {
 
                     <div className="flex-1">
                         <h3 className="font-semibold">{chatInfo?.name || 'Chat'}</h3>
-                        <p className="text-xs text-gray-500">Online</p>
+                        <p className="text-xs text-muted-foreground">Online</p>
                     </div>
 
-                    <button className="rounded-full p-2 hover:bg-gray-100">
+                    <button className="rounded-full p-2 hover:bg-accent">
                         <Phone className="h-5 w-5" />
                     </button>
-                    <button className="rounded-full p-2 hover:bg-gray-100">
+                    <button className="rounded-full p-2 hover:bg-accent">
                         <Video className="h-5 w-5" />
                     </button>
-                    <button className="rounded-full p-2 hover:bg-gray-100">
+                    <button className="rounded-full p-2 hover:bg-accent">
                         <MoreVertical className="h-5 w-5" />
                     </button>
                 </div>
@@ -139,7 +139,7 @@ export function ChatDetailScreen({ chatId, onBack }: ChatDetailScreenProps) {
             <div className="flex-1 overflow-y-auto px-4 py-4">
                 {messages.length === 0 ? (
                     <div className="flex h-full items-center justify-center">
-                        <p className="text-gray-500">No messages yet. Start the conversation!</p>
+                        <p className="text-muted-foreground">No messages yet. Start the conversation!</p>
                     </div>
                 ) : (
                     <div className="space-y-4">
@@ -153,12 +153,12 @@ export function ChatDetailScreen({ chatId, onBack }: ChatDetailScreenProps) {
                                     <div
                                         className={`max-w-[70%] rounded-2xl px-4 py-2 ${isCurrentUser
                                                 ? 'bg-primary text-primary-foreground'
-                                                : 'bg-white text-gray-900'
+                                                : 'bg-background text-foreground'
                                             }`}
                                     >
                                         <p className="break-words">{message.text}</p>
                                         <p
-                                            className={`mt-1 text-xs ${isCurrentUser ? 'text-primary-foreground/70' : 'text-gray-500'
+                                            className={`mt-1 text-xs ${isCurrentUser ? 'text-primary-foreground/70' : 'text-muted-foreground'
                                                 }`}
                                         >
                                             {new Date(message.timestamp).toLocaleTimeString([], {
@@ -176,7 +176,7 @@ export function ChatDetailScreen({ chatId, onBack }: ChatDetailScreenProps) {
             </div>
 
             {/* Input */}
-            <div className="border-t bg-white px-4 py-3">
+            <div className="border-t bg-background px-4 py-3">
                 <div className="flex items-end gap-2">
                     <Input
                         placeholder="Type a message..."

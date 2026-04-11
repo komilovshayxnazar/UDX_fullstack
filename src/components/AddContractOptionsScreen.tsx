@@ -18,11 +18,11 @@ export function AddContractOptionsScreen({
   onTakePicture 
 }: AddContractOptionsScreenProps) {
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-background">
       {/* Header */}
       <div className="bg-gradient-to-r from-[#af47ff] to-[#8b2dd1] px-4 py-6 text-white">
         <div className="flex items-center gap-3">
-          <button onClick={onBack} className="rounded-full p-2 hover:bg-white/10">
+          <button onClick={onBack} className="rounded-full p-2 hover:bg-background/10">
             <ArrowLeft className="h-5 w-5" />
           </button>
           <div>
@@ -44,7 +44,7 @@ export function AddContractOptionsScreen({
             </div>
             <div className="flex-1">
               <h3 className="mb-1">Create New Contract</h3>
-              <p className="text-gray-600">
+              <p className="text-muted-foreground">
                 Create and sign a contract on a single device
               </p>
             </div>
@@ -61,7 +61,7 @@ export function AddContractOptionsScreen({
             </div>
             <div className="flex-1">
               <h3 className="mb-1">Multi-Device Contract</h3>
-              <p className="text-gray-600">
+              <p className="text-muted-foreground">
                 Each party signs from their own device with face verification
               </p>
             </div>
@@ -78,7 +78,7 @@ export function AddContractOptionsScreen({
             </div>
             <div className="flex-1">
               <h3 className="mb-1">Select from Files</h3>
-              <p className="text-gray-600">
+              <p className="text-muted-foreground">
                 Upload an existing contract from your device
               </p>
             </div>
@@ -95,7 +95,7 @@ export function AddContractOptionsScreen({
             </div>
             <div className="flex-1">
               <h3 className="mb-1">Take a Picture</h3>
-              <p className="text-gray-600">
+              <p className="text-muted-foreground">
                 Scan a physical contract using your camera
               </p>
             </div>

@@ -169,11 +169,11 @@ export function SearchScreen({ onBack, onUserClick, onSellerClick }: SearchScree
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
+    <div className="min-h-screen bg-background pb-20">
       {/* Header */}
       <div className="bg-gradient-to-r from-[#af47ff] to-[#8b2dd1] px-4 py-6 text-white">
         <div className="mb-4 flex items-center gap-3">
-          <button onClick={onBack} className="rounded-full p-2 hover:bg-white/10">
+          <button onClick={onBack} className="rounded-full p-2 hover:bg-background/10">
             <ArrowLeft className="h-5 w-5" />
           </button>
           <div className="flex-1">
@@ -189,7 +189,7 @@ export function SearchScreen({ onBack, onUserClick, onSellerClick }: SearchScree
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search by name, @nickname, or phone"
-            className="bg-white/10 pl-10 text-white placeholder:text-white/60 border-white/20"
+            className="bg-background/10 pl-10 text-white placeholder:text-white/60 border-white/20"
           />
           {isUsernameSearch && (
             <AtSign className="absolute right-3 top-1/2 h-5 w-5 -translate-y-1/2 text-white/60" />
@@ -199,15 +199,15 @@ export function SearchScreen({ onBack, onUserClick, onSellerClick }: SearchScree
         {/* Search Hints */}
         {!searchQuery && (
           <div className="mt-3 flex flex-wrap gap-2">
-            <Badge className="bg-white/20 hover:bg-white/30 cursor-pointer" onClick={() => setSearchQuery('@')}>
+            <Badge className="bg-background/20 hover:bg-background/30 cursor-pointer" onClick={() => setSearchQuery('@')}>
               <AtSign className="mr-1 h-3 w-3" />
               @nickname
             </Badge>
-            <Badge className="bg-white/20 hover:bg-white/30 cursor-pointer">
+            <Badge className="bg-background/20 hover:bg-background/30 cursor-pointer">
               <Phone className="mr-1 h-3 w-3" />
               Phone
             </Badge>
-            <Badge className="bg-white/20 hover:bg-white/30 cursor-pointer">
+            <Badge className="bg-background/20 hover:bg-background/30 cursor-pointer">
               <Hash className="mr-1 h-3 w-3" />
               Name
             </Badge>
@@ -216,7 +216,7 @@ export function SearchScreen({ onBack, onUserClick, onSellerClick }: SearchScree
       </div>
 
       {/* Tabs */}
-      <div className="bg-white border-b">
+      <div className="bg-background border-b">
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full">
           <TabsList className="w-full grid grid-cols-3 h-12">
             <TabsTrigger value="all">All</TabsTrigger>
@@ -236,12 +236,12 @@ export function SearchScreen({ onBack, onUserClick, onSellerClick }: SearchScree
       <div className="px-4 py-4">
         {filteredUsers.length === 0 ? (
           <div className="py-12 text-center">
-            <SearchIcon className="mx-auto mb-4 h-12 w-12 text-gray-400" />
-            <p className="text-gray-500">
+            <SearchIcon className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
+            <p className="text-muted-foreground">
               {searchQuery ? 'No results found' : 'Start typing to search'}
             </p>
             {!searchQuery && (
-              <div className="mt-4 text-sm text-gray-400">
+              <div className="mt-4 text-sm text-muted-foreground">
                 <p>• Use @ to search by nickname</p>
                 <p>• Search by first/last name</p>
                 <p>• Search by phone number</p>
@@ -264,7 +264,7 @@ export function SearchScreen({ onBack, onUserClick, onSellerClick }: SearchScree
                       className="h-12 w-12 rounded-full object-cover"
                     />
                     {user.isOnline && (
-                      <div className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-white bg-green-500"></div>
+                      <div className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-background bg-green-500"></div>
                     )}
                   </div>
 
@@ -288,13 +288,13 @@ export function SearchScreen({ onBack, onUserClick, onSellerClick }: SearchScree
                       </Badge>
                     </div>
                     
-                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <AtSign className="h-3 w-3" />
                       <span>@{user.nickname}</span>
                     </div>
 
                     {user.company && (
-                      <p className="text-sm text-gray-500 mt-1">{user.company}</p>
+                      <p className="text-sm text-muted-foreground mt-1">{user.company}</p>
                     )}
 
                     {user.role === 'seller' && user.rating && (
@@ -302,7 +302,7 @@ export function SearchScreen({ onBack, onUserClick, onSellerClick }: SearchScree
                         <div className="flex items-center gap-1 text-yellow-500">
                           ⭐ {user.rating}
                         </div>
-                        <div className="text-gray-500">
+                        <div className="text-muted-foreground">
                           {user.totalSales} sales
                         </div>
                       </div>

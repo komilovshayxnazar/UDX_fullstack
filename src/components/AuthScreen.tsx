@@ -132,22 +132,22 @@ export function AuthScreen({ role, onComplete, onBack }: AuthScreenProps) {
 
         {activeTab === 'register' && registerStep === 'otp' ? null : (
           <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="mb-6">
-            <TabsList className="grid w-full grid-cols-2 bg-white/20">
-              <TabsTrigger value="login" className="data-[state=active]:bg-white data-[state=active]:text-[#af47ff]">
+            <TabsList className="grid w-full grid-cols-2 bg-background/20">
+              <TabsTrigger value="login" className="data-[state=active]:bg-background data-[state=active]:text-[#af47ff]">
                 Login
               </TabsTrigger>
-              <TabsTrigger value="register" className="data-[state=active]:bg-white data-[state=active]:text-[#af47ff]">
+              <TabsTrigger value="register" className="data-[state=active]:bg-background data-[state=active]:text-[#af47ff]">
                 Register
               </TabsTrigger>
             </TabsList>
 
             <TabsContent value="login" className="mt-6">
-              <div className="rounded-2xl bg-white p-6 shadow-xl">
+              <div className="rounded-2xl bg-background p-6 shadow-xl">
                 <form onSubmit={handleLoginSubmit} className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="login-phone">Phone Number</Label>
                     <div className="relative">
-                      <Phone className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+                      <Phone className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
                       <Input
                         id="login-phone"
                         type="tel"
@@ -162,7 +162,7 @@ export function AuthScreen({ role, onComplete, onBack }: AuthScreenProps) {
                   <div className="space-y-2">
                     <Label htmlFor="password">Password</Label>
                     <div className="relative">
-                      <Lock className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+                      <Lock className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
                       <Input
                         id="password"
                         type="password"
@@ -180,10 +180,10 @@ export function AuthScreen({ role, onComplete, onBack }: AuthScreenProps) {
 
                   <div className="relative my-4">
                     <div className="absolute inset-0 flex items-center">
-                      <div className="w-full border-t border-gray-300"></div>
+                      <div className="w-full border-t border-border"></div>
                     </div>
                     <div className="relative flex justify-center text-sm">
-                      <span className="bg-white px-2 text-gray-500">Or continue with</span>
+                      <span className="bg-background px-2 text-muted-foreground">Or continue with</span>
                     </div>
                   </div>
 
@@ -218,12 +218,12 @@ export function AuthScreen({ role, onComplete, onBack }: AuthScreenProps) {
             </TabsContent>
 
             <TabsContent value="register" className="mt-6">
-              <div className="rounded-2xl bg-white p-6 shadow-xl">
+              <div className="rounded-2xl bg-background p-6 shadow-xl">
                 <form onSubmit={handleRegisterPhoneSubmit} className="space-y-6">
                   <div className="space-y-2">
                     <Label htmlFor="register-phone">Phone Number</Label>
                     <div className="relative">
-                      <Phone className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+                      <Phone className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
                       <Input
                         id="register-phone"
                         type="tel"
@@ -239,7 +239,7 @@ export function AuthScreen({ role, onComplete, onBack }: AuthScreenProps) {
                   <div className="space-y-2">
                     <Label htmlFor="register-password">Create Password</Label>
                     <div className="relative">
-                      <Lock className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+                      <Lock className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
                       <Input
                         id="register-password"
                         type="password"
@@ -254,7 +254,7 @@ export function AuthScreen({ role, onComplete, onBack }: AuthScreenProps) {
                   <div className="space-y-2">
                     <Label htmlFor="telegram-username">Telegram Username</Label>
                     <div className="relative">
-                      <Send className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+                      <Send className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
                       <Input
                         id="telegram-username"
                         type="text"
@@ -264,7 +264,7 @@ export function AuthScreen({ role, onComplete, onBack }: AuthScreenProps) {
                         className="pl-10 h-12 text-lg"
                       />
                     </div>
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-muted-foreground">
                       Open Telegram, find <strong>@UDXBot</strong>, send <code>/start</code>, then come back here.
                     </p>
                   </div>
@@ -275,10 +275,10 @@ export function AuthScreen({ role, onComplete, onBack }: AuthScreenProps) {
 
                   <div className="relative my-4">
                     <div className="absolute inset-0 flex items-center">
-                      <div className="w-full border-t border-gray-300"></div>
+                      <div className="w-full border-t border-border"></div>
                     </div>
                     <div className="relative flex justify-center text-sm">
-                      <span className="bg-white px-2 text-gray-500">Or continue with</span>
+                      <span className="bg-background px-2 text-muted-foreground">Or continue with</span>
                     </div>
                   </div>
 
@@ -316,7 +316,7 @@ export function AuthScreen({ role, onComplete, onBack }: AuthScreenProps) {
 
         {/* OTP Section matches previous structure roughly but uses new handler */}
         {activeTab === 'register' && registerStep === 'otp' && (
-          <div className="mt-6 rounded-2xl bg-white p-6 shadow-xl">
+          <div className="mt-6 rounded-2xl bg-background p-6 shadow-xl">
             <form onSubmit={handleRegisterOtpSubmit} className="space-y-6">
               <div className="space-y-2">
                 <Label htmlFor="code">Verification Code</Label>
@@ -333,7 +333,7 @@ export function AuthScreen({ role, onComplete, onBack }: AuthScreenProps) {
                   autoFocus
                   maxLength={6}
                 />
-                <p className="text-sm text-gray-500 text-center">
+                <p className="text-sm text-muted-foreground text-center">
                   Code sent to <strong>@{telegramUsername}</strong> on Telegram
                 </p>
               </div>

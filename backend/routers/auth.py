@@ -12,12 +12,18 @@ import models
 import schemas
 from core.security import verify_password, create_access_token, ACCESS_TOKEN_EXPIRE_MINUTES
 from core.encryption import encrypt, decrypt, hmac_hash
-from telegram_bot import send_otp, get_chat_id
+from telegram_bot import send_otp, get_chat_id, send_otp_to_chat, get_chat_id_by_token, set_token_callback
 
 # In-memory OTP store: { telegram_username -> (code, expires_at, attempts) }
 _otp_store: dict[str, tuple[str, float, int]] = {}
+# Phone-based OTP store: { phone_hash -> (code, expires_at, attempts) }
+_phone_otp_store: dict[str, tuple[str, float, int]] = {}
+# Pending tokens: { token -> (phone_hash, otp_code, expires_at) }
+_pending_tokens: dict[str, tuple[str, str, float]] = {}
 OTP_TTL_SECONDS = 300  # 5 minutes
 OTP_MAX_ATTEMPTS = 5
+
+BOT_USERNAME = "udxregister_bot"
 
 VERIFIED_SESSIONS_FILE = "verified_sessions.json"
 VERIFIED_TTL_SECONDS = 600  # 10 minutes to complete registration
@@ -51,6 +57,76 @@ def consume_verified_session(username: str) -> bool:
     return False
 
 router = APIRouter(tags=["auth"])
+
+async def _on_token_arrived(token: str, chat_id: int) -> None:
+    """Bot tokenni qabul qilganda OTP ni yuboradi."""
+    entry = _pending_tokens.get(token)
+    if not entry:
+        return
+    phone_hash, otp_code, expires_at = entry
+    if time.time() > expires_at:
+        _pending_tokens.pop(token, None)
+        return
+    sent = await send_otp_to_chat(chat_id, otp_code)
+    if sent:
+        _phone_otp_store[phone_hash] = (otp_code, expires_at, 0)
+        _pending_tokens.pop(token, None)
+
+set_token_callback(_on_token_arrived)
+
+
+@router.post("/auth/otp/init-phone")
+async def init_phone_otp(body: schemas.PhoneOtpInit):
+    """
+    Telefon raqami asosida OTP jarayonini boshlaydi.
+    Token va bot_username qaytaradi — app deep link ochadi.
+    """
+    phone = _normalize_phone(body.phone)
+    phone_hash = hmac_hash(phone)
+
+    token = str(uuid.uuid4())[:8].upper()
+    otp_code = str(random.randint(100000, 999999))
+    expires_at = time.time() + OTP_TTL_SECONDS
+
+    _pending_tokens[token] = (phone_hash, otp_code, expires_at)
+
+    return {
+        "token": token,
+        "bot_username": BOT_USERNAME,
+        "expires_in": OTP_TTL_SECONDS
+    }
+
+
+@router.post("/auth/otp/verify-phone")
+async def verify_phone_otp(body: schemas.PhoneOtpVerify):
+    """Telefon va OTP kodni tasdiqlaydi."""
+    phone = _normalize_phone(body.phone)
+    phone_hash = hmac_hash(phone)
+
+    entry = _phone_otp_store.get(phone_hash)
+    if not entry:
+        raise HTTPException(status_code=400, detail="OTP topilmadi. Qaytadan so'rang.")
+
+    code, expires_at, attempts = entry
+    if time.time() > expires_at:
+        _phone_otp_store.pop(phone_hash, None)
+        raise HTTPException(status_code=400, detail="OTP muddati o'tdi. Qaytadan so'rang.")
+
+    if attempts >= OTP_MAX_ATTEMPTS:
+        _phone_otp_store.pop(phone_hash, None)
+        raise HTTPException(status_code=429, detail="Juda ko'p urinish. Qaytadan so'rang.")
+
+    if body.code != code:
+        _phone_otp_store[phone_hash] = (code, expires_at, attempts + 1)
+        raise HTTPException(status_code=400, detail="Noto'g'ri OTP kodi.")
+
+    _phone_otp_store.pop(phone_hash, None)
+    # Verified session saqlash (username o'rniga phone_hash ishlatamiz)
+    store = _load_verified_store()
+    store[phone_hash] = time.time() + VERIFIED_TTL_SECONDS
+    _save_verified_store(store)
+    return {"detail": "OTP tasdiqlandi."}
+
 
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")

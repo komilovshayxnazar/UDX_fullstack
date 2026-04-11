@@ -30,27 +30,27 @@ export function MessagesScreen({ onBack, onChatClick }: MessagesScreenProps) {
   const totalUnread = mockChats.reduce((sum, chat) => sum + chat.unreadCount, 0);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-background">
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-white px-4 py-4 shadow-sm">
+      <div className="sticky top-0 z-10 bg-background px-4 py-4 shadow-sm">
         <div className="mb-4 flex items-center gap-3">
-          <button onClick={onBack} className="rounded-full p-2 hover:bg-gray-100">
+          <button onClick={onBack} className="rounded-full p-2 hover:bg-accent">
             <ArrowLeft className="h-5 w-5" />
           </button>
           <div className="flex-1">
             <h2>Messages</h2>
             {totalUnread > 0 && (
-              <p className="text-gray-600">{totalUnread} unread</p>
+              <p className="text-muted-foreground">{totalUnread} unread</p>
             )}
           </div>
-          <button className="rounded-full p-2 hover:bg-gray-100">
+          <button className="rounded-full p-2 hover:bg-accent">
             <Filter className="h-5 w-5" />
           </button>
         </div>
 
         {/* Search */}
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="Search messages..."
             value={searchQuery}
@@ -78,11 +78,11 @@ export function MessagesScreen({ onBack, onChatClick }: MessagesScreenProps) {
         <TabsContent value={activeTab} className="mt-0">
           {filteredChats.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12">
-              <MessageCircle className="mb-4 h-16 w-16 text-gray-300" />
+              <MessageCircle className="mb-4 h-16 w-16 text-muted-foreground" />
               <h3 className="mb-2">
                 {mockChats.length === 0 ? 'No Messages Yet' : 'No Results'}
               </h3>
-              <p className="text-center text-gray-600">
+              <p className="text-center text-muted-foreground">
                 {mockChats.length === 0 
                   ? "Find a product and write to the seller!"
                   : "Try adjusting your search"}
@@ -149,7 +149,7 @@ function ChatItem({ chat, onClick }: ChatItemProps) {
           {/* Header */}
           <div className="mb-1 flex items-start justify-between gap-2">
             <h4 className="truncate">{chat.userName}</h4>
-            <span className="flex-shrink-0 text-gray-500">
+            <span className="flex-shrink-0 text-muted-foreground">
               {chat.lastMessageTime}
             </span>
           </div>
@@ -164,12 +164,12 @@ function ChatItem({ chat, onClick }: ChatItemProps) {
                   className="h-8 w-8 rounded object-cover"
                 />
               )}
-              <span className="truncate text-gray-600">{chat.productName}</span>
+              <span className="truncate text-muted-foreground">{chat.productName}</span>
             </div>
           )}
 
           {/* Last Message */}
-          <p className={`mb-2 truncate ${chat.unreadCount > 0 ? '' : 'text-gray-600'}`}>
+          <p className={`mb-2 truncate ${chat.unreadCount > 0 ? '' : 'text-muted-foreground'}`}>
             {chat.lastMessage}
           </p>
 

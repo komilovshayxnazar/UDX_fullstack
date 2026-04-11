@@ -67,6 +67,7 @@ class ProductBase(BaseModel):
     certified: bool = False
     is_b2b: bool = False
     gallery: List[str] = []
+    region: Optional[str] = None
 
 class ProductCreate(ProductBase):
     pass
@@ -292,6 +293,13 @@ class TelegramOtpRequest(BaseModel):
 
 class TelegramOtpVerify(BaseModel):
     telegram_username: str
+    code: str
+
+class PhoneOtpInit(BaseModel):
+    phone: str
+
+class PhoneOtpVerify(BaseModel):
+    phone: str
     code: str
 
 class TokenData(BaseModel):

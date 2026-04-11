@@ -44,6 +44,7 @@ import com.udx.app.data.User
 import com.udx.app.data.UserUpdate
 import com.udx.app.data.TransactionRequest
 import com.udx.app.utils.LocaleHelper
+import com.udx.app.utils.CurrencyFormatter
 import kotlinx.coroutines.launch
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
@@ -58,6 +59,85 @@ fun Context.findActivity(): Activity? = when (this) {
     else -> null
 }
 
+val ALL_CURRENCIES = linkedMapOf(
+    "UZS" to "O'zbek so'mi (so'm)",
+    "USD" to "US Dollar ($)",
+    "EUR" to "Euro (€)",
+    "RUB" to "Russian Ruble (₽)",
+    "KZT" to "Kazakhstan Tenge (₸)",
+    "KGS" to "Kyrgyzstan Som (с)",
+    "TJS" to "Tajikistan Somoni (SM)",
+    "TMT" to "Turkmenistan Manat (T)",
+    "AZN" to "Azerbaijan Manat (₼)",
+    "GEL" to "Georgian Lari (₾)",
+    "AMD" to "Armenian Dram (֏)",
+    "UAH" to "Ukrainian Hryvnia (₴)",
+    "BYN" to "Belarusian Ruble (Br)",
+    "GBP" to "Pound Sterling (£)",
+    "CHF" to "Swiss Franc (Fr)",
+    "JPY" to "Japan Yen (¥)",
+    "CNY" to "Chinese Yuan (¥)",
+    "KRW" to "Korean Won (₩)",
+    "TRY" to "Turkish Lira (₺)",
+    "SAR" to "Saudi Riyal (﷼)",
+    "AED" to "UAE Dirham (د.إ)",
+    "QAR" to "Qatari Riyal (﷼)",
+    "KWD" to "Kuwaiti Dinar (د.ك)",
+    "BHD" to "Bahraini Dinar (BD)",
+    "INR" to "Indian Rupee (₹)",
+    "PKR" to "Pakistan Rupee (₨)",
+    "BDT" to "Bangladesh Taka (৳)",
+    "IDR" to "Indonesian Rupiah (Rp)",
+    "MYR" to "Malaysian Ringgit (RM)",
+    "SGD" to "Singapore Dollar (S\$)",
+    "THB" to "Thai Baht (฿)",
+    "VND" to "Vietnamese Dong (₫)",
+    "PHP" to "Philippine Peso (₱)",
+    "HKD" to "Hong Kong Dollar (HK\$)",
+    "CAD" to "Canadian Dollar (CA\$)",
+    "AUD" to "Australian Dollar (A\$)",
+    "NZD" to "New Zealand Dollar (NZ\$)",
+    "MXN" to "Mexican Peso (MX\$)",
+    "BRL" to "Brazilian Real (R\$)",
+    "ZAR" to "South African Rand (R)",
+    "NOK" to "Norwegian Krone (kr)",
+    "SEK" to "Swedish Krona (kr)",
+    "DKK" to "Danish Krone (kr)",
+    "PLN" to "Polish Zloty (zł)",
+    "CZK" to "Czech Koruna (Kč)",
+    "HUF" to "Hungarian Forint (Ft)",
+    "RON" to "Romanian Leu (lei)",
+    "BGN" to "Bulgarian Lev (лв)",
+    "ILS" to "Israeli Shekel (₪)",
+    "EGP" to "Egyptian Pound (E£)",
+    "MAD" to "Moroccan Dirham (MAD)",
+    "DZD" to "Algerian Dinar (DA)",
+    "IQD" to "Iraqi Dinar (ع.د)",
+    "YER" to "Yemeni Rial (﷼)",
+    "JOD" to "Jordanian Dinar (JD)",
+    "OMR" to "Omani Rial (﷼)",
+    "LBP" to "Lebanese Pound (L£)",
+    "SYP" to "Syrian Pound (S£)",
+    "MNT" to "Mongolian Tugrik (₮)",
+    "AFN" to "Afghan Afghani (؋)",
+    "MMK" to "Myanmar Kyat (K)",
+    "KHR" to "Cambodian Riel (៛)",
+    "LAK" to "Lao Kip (₭)",
+    "IRR" to "Iranian Rial (﷼)",
+    "MDL" to "Moldovan Leu (L)",
+    "RSD" to "Serbian Dinar (din)",
+    "CUP" to "Cuban Peso (CUP)",
+    "UYU" to "Uruguayan Peso (\$U)",
+    "ARS" to "Argentine Peso (AR\$)",
+    "VES" to "Venezuelan Bolívar (Bs)",
+    "BND" to "Brunei Dollar (B\$)",
+    "ISK" to "Iceland Krona (kr)",
+    "SDG" to "Sudanese Pound (SDG)",
+    "LYD" to "Libyan Dinar (LD)",
+    "TND" to "Tunisian Dinar (DT)",
+    "XDR" to "SDR (XDR)"
+)
+
 @Composable
 fun ProfileScreen(onLogout: () -> Unit) {
     var userData by remember { mutableStateOf<User?>(null) }
@@ -67,6 +147,7 @@ fun ProfileScreen(onLogout: () -> Unit) {
     var showEditProfileDialog by remember { mutableStateOf(false) }
     var showChangePasswordDialog by remember { mutableStateOf(false) }
     var savedCards by remember { mutableStateOf<List<com.udx.app.data.PaymentCard>>(emptyList()) }
+    var balanceVisible by remember { mutableStateOf(false) }
     var isUploadingPhoto by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -104,13 +185,35 @@ fun ProfileScreen(onLogout: () -> Unit) {
     var marketNewsAnalytics by remember { mutableStateOf(false) }
     var systemNotifications by remember { mutableStateOf(true) }
     var twoFactorEnabled by remember { mutableStateOf(false) }
+    var profilePublic by remember { mutableStateOf(true) }
     var showLanguageDialog by remember { mutableStateOf(false) }
+    var currentLangCode by remember { mutableStateOf(LocaleHelper.getLanguage(context)) }
     var showCurrencyDialog by remember { mutableStateOf(false) }
     var showRegionDialog by remember { mutableStateOf(false) }
     var showUnitsDialog by remember { mutableStateOf(false) }
 
     var currentCurrency by remember {
         mutableStateOf(context.getSharedPreferences("udx_prefs", Context.MODE_PRIVATE).getString("currency", "USD") ?: "USD")
+    }
+
+    // O'zbekiston Markaziy banki kurslari (base: USD)
+    var exchangeRates by remember { mutableStateOf<Map<String, Double>>(mapOf("USD" to 1.0)) }
+    var ratesDate by remember { mutableStateOf("") }
+    var ratesLoading by remember { mutableStateOf(false) }
+    var ratesError by remember { mutableStateOf(false) }
+
+    suspend fun fetchRates() {
+        ratesLoading = true
+        ratesError = false
+        try {
+            val (rates, date) = CurrencyFormatter.fetchCbuRates()
+            exchangeRates = rates
+            ratesDate = date
+        } catch (_: Exception) {
+            ratesError = true
+        } finally {
+            ratesLoading = false
+        }
     }
 
     var currentRegion by remember {
@@ -121,25 +224,19 @@ fun ProfileScreen(onLogout: () -> Unit) {
         mutableStateOf(context.getSharedPreferences("udx_prefs", Context.MODE_PRIVATE).getString("unit", "kg") ?: "kg")
     }
 
-    val languages = mapOf(
-        "en" to "English",
-        "es" to "Español",
-        "fr" to "Français",
-        "de" to "Deutsch",
+    val languages = linkedMapOf(
+        "uz" to "O'zbek",
         "ru" to "Русский",
-        "uz" to "Oʻzbekcha",
+        "en" to "English",
         "kk" to "Қазақша",
         "ky" to "Кыргызча",
-        "tg" to "Тоҷикӣ"
+        "tg" to "Тоҷикӣ",
+        "de" to "Deutsch",
+        "es" to "Español",
+        "fr" to "Français"
     )
 
-    val currencies = mapOf(
-        "USD" to "US Dollar ($)",
-        "EUR" to "Euro (€)",
-        "RUB" to "Russian Ruble (₽)",
-        "UZS" to "Uzbek Som (UZS)",
-        "KZT" to "Kazakh Tenge (₸)"
-    )
+    val currencies = ALL_CURRENCIES
 
     val regions = mapOf(
         "Global" to "Global",
@@ -153,7 +250,9 @@ fun ProfileScreen(onLogout: () -> Unit) {
     fun loadProfile() {
         scope.launch {
             try {
-                userData = NetworkModule.apiService.getMe()
+                val me = NetworkModule.apiService.getMe()
+                userData = me
+                profilePublic = me.isPublic
             } catch (e: Exception) { } finally {
                 isLoading = false
             }
@@ -163,6 +262,7 @@ fun ProfileScreen(onLogout: () -> Unit) {
     LaunchedEffect(Unit) {
         loadProfile()
         try { savedCards = NetworkModule.apiService.getCards() } catch (_: Exception) {}
+        fetchRates()
     }
 
     if (isLoading) {
@@ -175,14 +275,14 @@ fun ProfileScreen(onLogout: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFF5F6F8))
+            .background(MaterialTheme.colorScheme.background)
             .verticalScroll(rememberScrollState())
     ) {
         // ── Header / Avatar ─────────────────────────────────────────────────
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(Color.White)
+                .background(MaterialTheme.colorScheme.surface)
                 .padding(24.dp),
             contentAlignment = Alignment.Center
         ) {
@@ -209,7 +309,7 @@ fun ProfileScreen(onLogout: () -> Unit) {
                         )
                     } else {
                         Box(
-                            modifier = Modifier.fillMaxSize().background(Color(0xFFEDE7F6)),
+                            modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.primaryContainer),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
@@ -254,23 +354,52 @@ fun ProfileScreen(onLogout: () -> Unit) {
                 Text(
                     text = if (userData != null) userData?.role?.replaceFirstChar { it.uppercase() } ?: "" else stringResource(R.string.guest_mode),
                     fontSize = 14.sp,
-                    color = Color.Gray
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(modifier = Modifier.height(16.dp))
                 // Balance card
                 Card(
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFFEDE7F6)),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(modifier = Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(stringResource(R.string.your_balance), fontSize = 13.sp, color = Color.Gray)
-                        Text(
-                            "$${String.format("%.2f", userData?.balance ?: 0.0)}",
-                            fontSize = 28.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF9C27B0)
-                        )
+                        Text(stringResource(R.string.your_balance), fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        val usdBalance = userData?.balance ?: 0.0
+                        val rate = exchangeRates[currentCurrency] ?: 1.0
+                        val convertedBalance = usdBalance * rate
+
+                        // Formatlash: UZS uchun alohida, boshqalar uchun 2 xonali
+                        val formattedBalance = when {
+                            !balanceVisible -> "••••••"
+                            else -> CurrencyFormatter.formatPrice(usdBalance, currentCurrency, rate)
+                        }
+
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Text(
+                                formattedBalance,
+                                fontSize = 28.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF9C27B0)
+                            )
+                            IconButton(onClick = { balanceVisible = !balanceVisible }) {
+                                Icon(
+                                    imageVector = if (balanceVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                    contentDescription = if (balanceVisible) "Hide balance" else "Show balance",
+                                    tint = Color(0xFF9C27B0)
+                                )
+                            }
+                        }
+                        if (balanceVisible && currentCurrency != "USD") {
+                            val rateHint = if (currentCurrency == "UZS")
+                                "1 USD = ${java.text.NumberFormat.getNumberInstance(java.util.Locale("ru")).format(rate.toLong())} so'm"
+                            else
+                                "1 USD = ${String.format("%.2f", rate)} $currentCurrency"
+                            Text(rateHint, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
                         if (userData != null) {
                             Spacer(modifier = Modifier.height(12.dp))
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -308,7 +437,7 @@ fun ProfileScreen(onLogout: () -> Unit) {
                 iconBg = Color(0xFF9C27B0),
                 title = stringResource(R.string.phone_number),
                 subtitle = if (userData?.phone?.startsWith("google_") == true) "Google account" else userData?.phone ?: stringResource(R.string.not_set),
-                subtitleColor = if (userData?.phone == null) Color(0xFFE53935) else Color.Gray
+                subtitleColor = if (userData?.phone == null) Color(0xFFE53935) else Color.Unspecified
             )
             SettingsDivider()
             SettingsItem(
@@ -375,11 +504,22 @@ fun ProfileScreen(onLogout: () -> Unit) {
         // ── Privacy ──────────────────────────────────────────────────────────
         SettingsSectionHeader(stringResource(R.string.privacy))
         SettingsGroup {
-            SettingsItem(
+            SettingsToggle(
                 icon = Icons.Default.Person,
                 iconBg = Color(0xFF2E7D32),
                 title = stringResource(R.string.profile_visibility),
-                subtitle = stringResource(R.string.profile_visibility_sub)
+                checked = profilePublic,
+                onCheckedChange = { newValue ->
+                    profilePublic = newValue
+                    scope.launch {
+                        try {
+                            NetworkModule.apiService.updateMe(UserUpdate(isPublic = newValue))
+                        } catch (_: Exception) {
+                            // Revert on failure
+                            profilePublic = !newValue
+                        }
+                    }
+                }
             )
         }
 
@@ -388,13 +528,20 @@ fun ProfileScreen(onLogout: () -> Unit) {
         // ── Preferences ──────────────────────────────────────────────────────
         SettingsSectionHeader(stringResource(R.string.preferences))
         SettingsGroup {
-            val currentLangCode = LocaleHelper.getLanguage(context)
-            val currentLangName = languages[currentLangCode] ?: "English"
+            val themeState = com.udx.app.ui.theme.LocalThemeState.current
+            SettingsToggle(
+                icon = Icons.Default.DarkMode,
+                iconBg = Color(0xFF37474F),
+                title = "Dark Mode",
+                checked = themeState.isDark,
+                onCheckedChange = { themeState.toggle() }
+            )
+            SettingsDivider()
             SettingsItem(
-                icon = Icons.Default.Search, 
-                iconBg = Color(0xFF00796B), 
-                title = stringResource(R.string.language), 
-                subtitle = currentLangName,
+                icon = Icons.Default.Translate,
+                iconBg = Color(0xFF00796B),
+                title = stringResource(R.string.language),
+                subtitle = languages[currentLangCode] ?: currentLangCode.uppercase(),
                 onClick = { showLanguageDialog = true }
             )
             SettingsDivider()
@@ -451,7 +598,7 @@ fun ProfileScreen(onLogout: () -> Unit) {
                 }
                 Spacer(modifier = Modifier.width(12.dp))
                 Text(stringResource(R.string.app_version), fontSize = 15.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
-                Text("v1.0.0", fontSize = 14.sp, color = Color.Gray)
+                Text("v1.0.0", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
 
@@ -520,14 +667,27 @@ fun ProfileScreen(onLogout: () -> Unit) {
                             }
                         }
                         Spacer(modifier = Modifier.height(12.dp))
+                        val dialogRate = exchangeRates[currentCurrency] ?: 1.0
+                        val currencyLabel = if (currentCurrency == "UZS") "so'm" else currentCurrency
                         OutlinedTextField(
                             value = balanceAmount,
-                            onValueChange = { balanceAmount = it },
-                            label = { Text(stringResource(R.string.amount)) },
+                            onValueChange = { v -> if (v.all { it.isDigit() || it == '.' }) balanceAmount = v },
+                            label = { Text("${stringResource(R.string.amount)} ($currencyLabel)") },
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
                             keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal)
                         )
+                        // USD ekvivalenti ko'rsatish
+                        if (currentCurrency != "USD") {
+                            val enteredAmt = balanceAmount.toDoubleOrNull() ?: 0.0
+                            val usdEquiv = if (dialogRate > 0) enteredAmt / dialogRate else 0.0
+                            Text(
+                                "≈ $${String.format("%.2f", usdEquiv)} USD",
+                                fontSize = 11.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(top = 4.dp)
+                            )
+                        }
                     }
                     if (balanceError != null) {
                         Spacer(modifier = Modifier.height(8.dp))
@@ -539,9 +699,13 @@ fun ProfileScreen(onLogout: () -> Unit) {
                 Button(
                     onClick = {
                         if (savedCards.isEmpty()) { showBalanceDialog = null; return@Button }
-                        val amount = balanceAmount.toDoubleOrNull()
-                        if (amount == null || amount <= 0) { balanceError = "Enter a valid amount"; return@Button }
+                        val enteredAmount = balanceAmount.toDoubleOrNull()
+                        if (enteredAmount == null || enteredAmount <= 0) { balanceError = "Enter a valid amount"; return@Button }
                         if (selectedCardId.isBlank()) { balanceError = "Select a card"; return@Button }
+                        // API har doim USD qabul qiladi — tanlangan valyutadan konvert qilamiz
+                        val dialogRate2 = exchangeRates[currentCurrency] ?: 1.0
+                        val amount = if (currentCurrency == "USD" || dialogRate2 <= 0) enteredAmount
+                                     else enteredAmount / dialogRate2
                         balanceLoading = true
                         balanceError = null
                         // Generate idempotency key once per button tap — prevents double charge
@@ -610,22 +774,46 @@ fun ProfileScreen(onLogout: () -> Unit) {
     if (showLanguageDialog) {
         AlertDialog(
             onDismissRequest = { showLanguageDialog = false },
-            title = { Text(stringResource(R.string.language)) },
+            title = { Text(stringResource(R.string.language), fontWeight = FontWeight.Bold) },
             text = {
                 Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                     languages.forEach { (code, name) ->
+                        val isSelected = currentLangCode == code
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable {
                                     LocaleHelper.setLocale(context, code)
+                                    currentLangCode = code
                                     showLanguageDialog = false
                                     context.findActivity()?.recreate()
                                 }
-                                .padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                                .background(
+                                    if (isSelected) MaterialTheme.colorScheme.primaryContainer
+                                    else Color.Transparent
+                                )
+                                .padding(vertical = 12.dp, horizontal = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text(name, fontSize = 16.sp)
+                            Text(
+                                name,
+                                fontSize = 16.sp,
+                                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                                color = if (isSelected) MaterialTheme.colorScheme.primary
+                                        else MaterialTheme.colorScheme.onSurface
+                            )
+                            if (isSelected) {
+                                Icon(
+                                    Icons.Default.Check,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+                        if (code != languages.keys.last()) {
+                            Divider(color = MaterialTheme.colorScheme.outlineVariant)
                         }
                     }
                 }
@@ -642,10 +830,37 @@ fun ProfileScreen(onLogout: () -> Unit) {
     if (showCurrencyDialog) {
         AlertDialog(
             onDismissRequest = { showCurrencyDialog = false },
-            title = { Text(stringResource(R.string.currency)) },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(stringResource(R.string.currency), modifier = Modifier.weight(1f))
+                    IconButton(
+                        onClick = { scope.launch { fetchRates() } },
+                        enabled = !ratesLoading
+                    ) {
+                        if (ratesLoading) {
+                            CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                        } else {
+                            Icon(Icons.Default.Refresh, contentDescription = "Refresh rates", tint = Color(0xFF9C27B0))
+                        }
+                    }
+                }
+            },
             text = {
                 Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                    if (ratesDate.isNotEmpty()) {
+                        Text(
+                            "O'zbekiston MBdan · $ratesDate · Base: USD",
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(bottom = 8.dp)
+                        )
+                    }
+                    if (ratesError) {
+                        Text("Failed to load rates. Tap ↻ to retry.", fontSize = 12.sp, color = Color(0xFFE53935))
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
                     currencies.forEach { (code, name) ->
+                        val rate = exchangeRates[code]
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -657,11 +872,28 @@ fun ProfileScreen(onLogout: () -> Unit) {
                                     currentCurrency = code
                                     showCurrencyDialog = false
                                 }
-                                .padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                                .background(if (currentCurrency == code) MaterialTheme.colorScheme.primaryContainer else Color.Transparent)
+                                .padding(horizontal = 4.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text(name, fontSize = 16.sp)
+                            Text(name, fontSize = 15.sp, modifier = Modifier.weight(1f))
+                            val rateText = when {
+                                ratesLoading -> "…"
+                                code == "USD" -> "Base"
+                                rate == null -> "N/A"
+                                code == "UZS" -> "1 USD = ${java.text.NumberFormat.getNumberInstance(java.util.Locale("ru")).format(rate.toLong())} so'm"
+                                code == "JPY" || code == "KRW" || code == "IDR" ->
+                                    "1 USD = ${String.format("%.0f", rate)} $code"
+                                else -> "1 USD = ${String.format("%.2f", rate)} $code"
+                            }
+                            Text(
+                                rateText,
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
+                        if (code != currencies.keys.last()) Divider(color = MaterialTheme.colorScheme.outlineVariant)
                     }
                 }
             },
@@ -779,7 +1011,7 @@ fun ProfileScreen(onLogout: () -> Unit) {
             text = {
                 Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                     if (savedCards.isEmpty() && !showAddCard) {
-                        Text("No cards saved yet.", color = Color.Gray, style = MaterialTheme.typography.bodySmall)
+                        Text("No cards saved yet.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
                         Spacer(modifier = Modifier.height(8.dp))
                     }
                     savedCards.forEach { card ->
@@ -1159,7 +1391,7 @@ fun SettingsSectionHeader(title: String) {
         text = title,
         fontSize = 13.sp,
         fontWeight = FontWeight.SemiBold,
-        color = Color.Gray,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier.padding(start = 16.dp, bottom = 6.dp)
     )
 }
@@ -1171,7 +1403,7 @@ fun SettingsGroup(content: @Composable ColumnScope.() -> Unit) {
             .fillMaxWidth()
             .padding(horizontal = 16.dp),
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Column { content() }
@@ -1184,7 +1416,7 @@ fun SettingsItem(
     iconBg: Color,
     title: String,
     subtitle: String? = null,
-    subtitleColor: Color = Color.Gray,
+    subtitleColor: Color = Color.Unspecified,
     onClick: () -> Unit = {}
 ) {
     Row(
@@ -1207,7 +1439,7 @@ fun SettingsItem(
         Column(modifier = Modifier.weight(1f)) {
             Text(title, fontSize = 15.sp, fontWeight = FontWeight.Medium)
             if (subtitle != null) {
-                Text(subtitle, fontSize = 13.sp, color = subtitleColor)
+                Text(subtitle, fontSize = 13.sp, color = if (subtitleColor == Color.Unspecified) MaterialTheme.colorScheme.onSurfaceVariant else subtitleColor)
             }
         }
         Icon(Icons.Default.KeyboardArrowRight, contentDescription = null, tint = Color.LightGray)
@@ -1254,7 +1486,7 @@ fun SettingsToggle(
 fun SettingsDivider() {
     Divider(
         modifier = Modifier.padding(start = 64.dp),
-        color = Color(0xFFF0F0F0),
+        color = MaterialTheme.colorScheme.outlineVariant,
         thickness = 1.dp
     )
 }

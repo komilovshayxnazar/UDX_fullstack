@@ -125,7 +125,8 @@ class Product(Document):
     sales: int = 0
     
     gallery: List[str] = []
-    
+    region: Optional[str] = None
+
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     class Settings:

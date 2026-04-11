@@ -19,6 +19,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import android.app.Activity
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -64,7 +65,10 @@ fun DashboardScreen(
         "en" to "English",
         "kk" to "Қазақша",
         "ky" to "Кыргызча",
-        "tg" to "Тоҷикӣ"
+        "tg" to "Тоҷикӣ",
+        "de" to "Deutsch",
+        "es" to "Español",
+        "fr" to "Français"
     )
 
     LaunchedEffect(Unit) {
@@ -403,6 +407,7 @@ fun DashboardScreen(
                                     LocaleHelper.setLocale(context, code)
                                     currentLanguage = code
                                     showLanguageDialog = false
+                                    (context as? Activity)?.recreate()
                                 }
                                 .padding(vertical = 12.dp, horizontal = 4.dp),
                             verticalAlignment = Alignment.CenterVertically,

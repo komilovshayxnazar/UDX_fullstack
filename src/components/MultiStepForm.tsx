@@ -75,7 +75,7 @@ export function MultiStepForm() {
           className="text-center"
         >
           <h2 className="mb-4">Welcome aboard, {formData.firstName}!</h2>
-          <p className="mb-8 text-gray-600">
+          <p className="mb-8 text-muted-foreground">
             Your account has been created successfully. Check your email to verify your account.
           </p>
           <Button onClick={() => console.log('Get started')} className="w-full">
@@ -91,7 +91,7 @@ export function MultiStepForm() {
       {/* Header */}
       <div className="mb-8">
         <h1 className="mb-2">Create your account</h1>
-        <p className="text-gray-600">
+        <p className="text-muted-foreground">
           Join thousands of users already using our platform
         </p>
       </div>
@@ -99,8 +99,8 @@ export function MultiStepForm() {
       {/* Progress Bar */}
       <div className="mb-8">
         <div className="mb-2 flex justify-between">
-          <span className="text-gray-600">Step {step} of {totalSteps}</span>
-          <span className="text-gray-600">{Math.round(progress)}%</span>
+          <span className="text-muted-foreground">Step {step} of {totalSteps}</span>
+          <span className="text-muted-foreground">{Math.round(progress)}%</span>
         </div>
         <Progress value={progress} className="h-2" />
       </div>
@@ -152,9 +152,9 @@ export function MultiStepForm() {
 
                 <div className="pt-6">
                   <div className="mb-4 flex items-center gap-4">
-                    <div className="h-px flex-1 bg-gray-200" />
-                    <span className="text-gray-500">Or continue with</span>
-                    <div className="h-px flex-1 bg-gray-200" />
+                    <div className="h-px flex-1 bg-muted" />
+                    <span className="text-muted-foreground">Or continue with</span>
+                    <div className="h-px flex-1 bg-muted" />
                   </div>
                   <div className="flex gap-3">
                     <Button
@@ -196,12 +196,12 @@ export function MultiStepForm() {
                       <button
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                       >
                         {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                       </button>
                     </div>
-                    <p className="mt-1 text-gray-500">
+                    <p className="mt-1 text-muted-foreground">
                       Must be at least 8 characters
                     </p>
                   </div>
@@ -219,7 +219,7 @@ export function MultiStepForm() {
                       <button
                         type="button"
                         onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                       >
                         {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                       </button>
@@ -254,7 +254,7 @@ export function MultiStepForm() {
                       onChange={(e) => updateFormData('role', e.target.value)}
                     />
                   </div>
-                  <p className="text-gray-500">
+                  <p className="text-muted-foreground">
                     This helps us personalize your experience
                   </p>
                 </div>
@@ -284,7 +284,7 @@ export function MultiStepForm() {
       </div>
 
       {/* Sign in link */}
-      <div className="mt-6 text-center text-gray-600">
+      <div className="mt-6 text-center text-muted-foreground">
         Already have an account?{' '}
         <button className="text-blue-600 hover:underline">
           Sign in

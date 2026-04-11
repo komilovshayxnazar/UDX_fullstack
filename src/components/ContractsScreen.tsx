@@ -89,12 +89,12 @@ export function ContractsScreen({ onBack, onAddContract, onViewContract }: Contr
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
+    <div className="min-h-screen bg-background pb-20">
       {/* Header */}
       <div className="bg-gradient-to-r from-[#af47ff] to-[#8b2dd1] px-4 py-6 text-white">
         <div className="mb-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <button onClick={onBack} className="rounded-full p-2 hover:bg-white/10">
+            <button onClick={onBack} className="rounded-full p-2 hover:bg-background/10">
               <ArrowLeft className="h-5 w-5" />
             </button>
             <div>
@@ -105,7 +105,7 @@ export function ContractsScreen({ onBack, onAddContract, onViewContract }: Contr
           <Button 
             onClick={onAddContract}
             size="sm"
-            className="bg-white text-[#af47ff] hover:bg-white/90"
+            className="bg-background text-[#af47ff] hover:bg-background/90"
           >
             <Plus className="mr-2 h-4 w-4" />
             Add Contract
@@ -119,13 +119,13 @@ export function ContractsScreen({ onBack, onAddContract, onViewContract }: Contr
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search contracts..."
-            className="bg-white/10 pl-10 text-white placeholder:text-white/60 border-white/20"
+            className="bg-background/10 pl-10 text-white placeholder:text-white/60 border-white/20"
           />
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="bg-white border-b px-4 py-2">
+      <div className="bg-background border-b px-4 py-2">
         <div className="flex gap-2">
           {['all', 'active', 'pending', 'completed'].map((tab) => (
             <button
@@ -134,7 +134,7 @@ export function ContractsScreen({ onBack, onAddContract, onViewContract }: Contr
               className={`rounded-full px-4 py-2 text-sm transition-colors ${
                 selectedTab === tab
                   ? 'bg-[#af47ff] text-white'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  : 'bg-muted text-muted-foreground hover:bg-accent'
               }`}
             >
               {tab.charAt(0).toUpperCase() + tab.slice(1)}
@@ -147,8 +147,8 @@ export function ContractsScreen({ onBack, onAddContract, onViewContract }: Contr
       <div className="px-4 py-4">
         {filteredContracts.length === 0 ? (
           <div className="py-12 text-center">
-            <FileText className="mx-auto mb-4 h-12 w-12 text-gray-400" />
-            <p className="text-gray-500">No contracts found</p>
+            <FileText className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
+            <p className="text-muted-foreground">No contracts found</p>
             <Button 
               onClick={onAddContract}
               className="mt-4 bg-[#af47ff] hover:bg-[#9333ea]"
@@ -169,7 +169,7 @@ export function ContractsScreen({ onBack, onAddContract, onViewContract }: Contr
                   <div className="mb-3 flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
                       <h4 className="mb-1 truncate">{contract.title}</h4>
-                      <p className="text-gray-600">{contract.type}</p>
+                      <p className="text-muted-foreground">{contract.type}</p>
                     </div>
                     <Badge className={getStatusColor(contract.status)}>
                       <span className="flex items-center gap-1">
@@ -187,13 +187,13 @@ export function ContractsScreen({ onBack, onAddContract, onViewContract }: Contr
                     />
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
-                        <User className="h-4 w-4 text-gray-500" />
+                        <User className="h-4 w-4 text-muted-foreground" />
                         <span>{contract.partnerName}</span>
                       </div>
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between text-gray-600">
+                  <div className="flex items-center justify-between text-muted-foreground">
                     <div className="flex items-center gap-2">
                       <Calendar className="h-4 w-4" />
                       <span>{contract.date}</span>

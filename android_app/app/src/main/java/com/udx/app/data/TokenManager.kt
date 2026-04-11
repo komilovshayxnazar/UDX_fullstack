@@ -21,6 +21,14 @@ object TokenManager {
     }
 
     fun clearToken() {
-        sharedPreferences?.edit()?.remove("jwt_token")?.apply()
+        sharedPreferences?.edit()?.remove("jwt_token")?.remove("my_id")?.apply()
+    }
+
+    fun saveMyId(id: String) {
+        sharedPreferences?.edit()?.putString("my_id", id)?.apply()
+    }
+
+    fun getMyId(): String? {
+        return sharedPreferences?.getString("my_id", null)
     }
 }

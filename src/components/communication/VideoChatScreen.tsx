@@ -90,7 +90,7 @@ export function VideoChatScreen({
               setIsMuted(!isMuted);
               toast.info(isMuted ? 'Microphone on' : 'Microphone off');
             }}
-            className={`text-white hover:bg-white/20 ${isMuted ? 'bg-red-500/50' : ''}`}
+            className={`text-white hover:bg-background/20 ${isMuted ? 'bg-red-500/50' : ''}`}
           >
             {isMuted ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
           </Button>
@@ -103,7 +103,7 @@ export function VideoChatScreen({
               setIsVideoOff(!isVideoOff);
               toast.info(isVideoOff ? 'Camera on' : 'Camera off');
             }}
-            className={`text-white hover:bg-white/20 ${isVideoOff ? 'bg-red-500/50' : ''}`}
+            className={`text-white hover:bg-background/20 ${isVideoOff ? 'bg-red-500/50' : ''}`}
           >
             {isVideoOff ? <VideoOff className="h-5 w-5" /> : <Video className="h-5 w-5" />}
           </Button>
@@ -112,7 +112,7 @@ export function VideoChatScreen({
           <Button
             variant="ghost"
             size="icon"
-            className="text-white hover:bg-white/20"
+            className="text-white hover:bg-background/20"
             onClick={() => toast.info('Screen sharing feature')}
           >
             <Monitor className="h-5 w-5" />
@@ -122,7 +122,7 @@ export function VideoChatScreen({
           <Button
             variant="ghost"
             size="icon"
-            className="text-white hover:bg-white/20"
+            className="text-white hover:bg-background/20"
           >
             <MoreVertical className="h-5 w-5" />
           </Button>
@@ -132,7 +132,7 @@ export function VideoChatScreen({
             variant="ghost"
             size="icon"
             onClick={handleToggleFavorite}
-            className="text-white hover:bg-white/20"
+            className="text-white hover:bg-background/20"
           >
             <Heart 
               className={`h-5 w-5 ${isLiked ? 'fill-red-500 text-red-500' : ''}`}
@@ -182,7 +182,7 @@ export function VideoChatScreen({
       </div>
 
       {/* Translation Panel */}
-      <div className="bg-white">
+      <div className="bg-background">
         <Tabs value={translationMode} onValueChange={(v) => setTranslationMode(v as 'chat' | 'voice')}>
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="chat">
@@ -197,7 +197,7 @@ export function VideoChatScreen({
 
           <TabsContent value="chat" className="p-4">
             <div className="mb-3 flex items-center justify-between">
-              <span className="text-gray-600">Messages auto-translate</span>
+              <span className="text-muted-foreground">Messages auto-translate</span>
               <Dialog>
                 <DialogTrigger asChild>
                   <Button variant="outline" size="sm">
@@ -255,7 +255,7 @@ export function VideoChatScreen({
 
           <TabsContent value="voice" className="p-4">
             <div className="mb-3 flex items-center justify-between">
-              <span className="text-gray-600">Live voice translation</span>
+              <span className="text-muted-foreground">Live voice translation</span>
               <Dialog>
                 <DialogTrigger asChild>
                   <Button variant="outline" size="sm">
@@ -300,7 +300,7 @@ export function VideoChatScreen({
             </div>
 
             {/* Live Subtitles */}
-            <div className="space-y-3 rounded-xl bg-gray-50 p-4">
+            <div className="space-y-3 rounded-xl bg-background p-4">
               <div>
                 <Badge className="mb-2 bg-blue-500">Partner speaking (Turkish)</Badge>
                 <p className="mb-1">{liveTranscript.original}</p>

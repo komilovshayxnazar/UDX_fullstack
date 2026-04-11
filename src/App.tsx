@@ -443,19 +443,19 @@ function AppContent() {
               cartItemCount={cartItemCount}
               products={products}
             />
-            <BottomNavigation activeTab={buyerBottomTab} onTabChange={handleBuyerBottomTabChange} mode="buyer" onSwitchRole={() => { setActiveMode('seller'); setCurrentSellerScreen('dashboard'); }} />
+            <BottomNavigation activeTab={buyerBottomTab} onTabChange={handleBuyerBottomTabChange} mode="buyer"} />
           </>
         )}
         {currentBuyerScreen === 'live' && (
           <>
             <LiveScreen userRole="buyer" />
-            <BottomNavigation activeTab={buyerBottomTab} onTabChange={handleBuyerBottomTabChange} mode="buyer" onSwitchRole={() => { setActiveMode('seller'); setCurrentSellerScreen('dashboard'); }} />
+            <BottomNavigation activeTab={buyerBottomTab} onTabChange={handleBuyerBottomTabChange} mode="buyer"} />
           </>
         )}
         {currentBuyerScreen === 'add' && (
           <>
             <AddAdScreen onProductAdded={handleProductAdded} token={token} />
-            <BottomNavigation activeTab={buyerBottomTab} onTabChange={handleBuyerBottomTabChange} mode="buyer" onSwitchRole={() => { setActiveMode('seller'); setCurrentSellerScreen('dashboard'); }} />
+            <BottomNavigation activeTab={buyerBottomTab} onTabChange={handleBuyerBottomTabChange} mode="buyer"} />
           </>
         )}
         {currentBuyerScreen === 'product' && selectedProductId && (
@@ -490,7 +490,7 @@ function AppContent() {
         {currentBuyerScreen === 'trends' && (
           <>
             <MarketTrendsScreen onBack={handleBuyerBack} />
-            <BottomNavigation activeTab={buyerBottomTab} onTabChange={handleBuyerBottomTabChange} mode="buyer" onSwitchRole={() => { setActiveMode('seller'); setCurrentSellerScreen('dashboard'); }} />
+            <BottomNavigation activeTab={buyerBottomTab} onTabChange={handleBuyerBottomTabChange} mode="buyer"} />
           </>
         )}
         {currentBuyerScreen === 'communication' && (
@@ -589,7 +589,7 @@ function AppContent() {
               onBack={handleBuyerBack}
               onAddContract={() => setCurrentBuyerScreen('add-contract-options')}
             />
-            <BottomNavigation activeTab={buyerBottomTab} onTabChange={handleBuyerBottomTabChange} mode="buyer" onSwitchRole={() => { setActiveMode('seller'); setCurrentSellerScreen('dashboard'); }} />
+            <BottomNavigation activeTab={buyerBottomTab} onTabChange={handleBuyerBottomTabChange} mode="buyer"} />
           </>
         )}
         {currentBuyerScreen === 'add-contract-options' && (
@@ -663,7 +663,7 @@ function AppContent() {
                 setCurrentBuyerScreen('home');
               }}
             />
-            <BottomNavigation activeTab={sellerBottomTab} onTabChange={handleSellerBottomTabChange} mode="seller" onSwitchRole={() => { setActiveMode('buyer'); setCurrentBuyerScreen('home'); }} />
+            <BottomNavigation activeTab={sellerBottomTab} onTabChange={handleSellerBottomTabChange} mode="seller"} />
           </>
         )}
         {currentSellerScreen === 'products' && (
@@ -686,19 +686,19 @@ function AppContent() {
         {currentSellerScreen === 'live' && (
           <>
             <LiveScreen userRole="seller" />
-            <BottomNavigation activeTab={sellerBottomTab} onTabChange={handleSellerBottomTabChange} mode="seller" onSwitchRole={() => { setActiveMode('buyer'); setCurrentBuyerScreen('home'); }} />
+            <BottomNavigation activeTab={sellerBottomTab} onTabChange={handleSellerBottomTabChange} mode="seller"} />
           </>
         )}
         {currentSellerScreen === 'add' && (
           <>
             <AddAdScreen onProductAdded={handleProductAdded} token={token} />
-            <BottomNavigation activeTab={sellerBottomTab} onTabChange={handleSellerBottomTabChange} mode="seller" onSwitchRole={() => { setActiveMode('buyer'); setCurrentBuyerScreen('home'); }} />
+            <BottomNavigation activeTab={sellerBottomTab} onTabChange={handleSellerBottomTabChange} mode="seller"} />
           </>
         )}
         {currentSellerScreen === 'trends' && (
           <>
             <MarketTrendsScreen onBack={() => setCurrentSellerScreen('dashboard')} />
-            <BottomNavigation activeTab={sellerBottomTab} onTabChange={handleSellerBottomTabChange} mode="seller" onSwitchRole={() => { setActiveMode('buyer'); setCurrentBuyerScreen('home'); }} />
+            <BottomNavigation activeTab={sellerBottomTab} onTabChange={handleSellerBottomTabChange} mode="seller"} />
           </>
         )}
         {currentSellerScreen === 'settings' && (
@@ -776,7 +776,7 @@ function AppContent() {
               onBack={() => setCurrentSellerScreen('dashboard')}
               onAddContract={() => setCurrentSellerScreen('add-contract-options')}
             />
-            <BottomNavigation activeTab={sellerBottomTab} onTabChange={handleSellerBottomTabChange} mode="seller" onSwitchRole={() => { setActiveMode('buyer'); setCurrentBuyerScreen('home'); }} />
+            <BottomNavigation activeTab={sellerBottomTab} onTabChange={handleSellerBottomTabChange} mode="seller"} />
           </>
         )}
         {currentSellerScreen === 'add-contract-options' && (

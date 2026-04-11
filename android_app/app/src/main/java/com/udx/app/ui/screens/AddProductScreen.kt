@@ -38,6 +38,13 @@ fun AddProductScreen(onBack: () -> Unit, onSuccess: () -> Unit) {
     var imageUri by remember { mutableStateOf<Uri?>(null) }
     var categoryId by remember { mutableStateOf("") }
     var categories by remember { mutableStateOf<List<com.udx.app.data.Category>>(emptyList()) }
+    val regionOptions = listOf(
+        "Toshkent", "Toshkent viloyati", "Samarqand", "Buxoro", "Andijon",
+        "Farg'ona", "Namangan", "Qashqadaryo", "Surxondaryo", "Jizzax",
+        "Sirdaryo", "Xorazm", "Navoiy", "Qoraqalpog'iston"
+    )
+    var region by remember { mutableStateOf(regionOptions[0]) }
+    var regionDropdownExpanded by remember { mutableStateOf(false) }
     var isB2b by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(false) }
     var isCategoriesLoading by remember { mutableStateOf(true) }
@@ -184,6 +191,36 @@ fun AddProductScreen(onBack: () -> Unit, onSuccess: () -> Unit) {
                     }
                 }
             }
+            Spacer(modifier = Modifier.height(8.dp))
+
+            ExposedDropdownMenuBox(
+                expanded = regionDropdownExpanded,
+                onExpandedChange = { regionDropdownExpanded = it }
+            ) {
+                OutlinedTextField(
+                    value = region,
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Hudud (viloyat)") },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = regionDropdownExpanded) },
+                    modifier = Modifier.fillMaxWidth().menuAnchor()
+                )
+                ExposedDropdownMenu(
+                    expanded = regionDropdownExpanded,
+                    onDismissRequest = { regionDropdownExpanded = false }
+                ) {
+                    regionOptions.forEach { option ->
+                        DropdownMenuItem(
+                            text = { Text(option) },
+                            onClick = {
+                                region = option
+                                regionDropdownExpanded = false
+                            }
+                        )
+                    }
+                }
+            }
+
             Spacer(modifier = Modifier.height(16.dp))
 
             Text("Product Image", style = MaterialTheme.typography.titleSmall)
@@ -258,7 +295,7 @@ fun AddProductScreen(onBack: () -> Unit, onSuccess: () -> Unit) {
                             
                             // 2. Create Product
                             NetworkModule.apiService.createProduct(
-                                ProductCreate(name, priceDouble, unit, uploadResponse.url, description, categoryId, isB2b)
+                                ProductCreate(name, priceDouble, unit, uploadResponse.url, description, categoryId, isB2b, region)
                             )
                             onSuccess()
                         } catch (e: Exception) {

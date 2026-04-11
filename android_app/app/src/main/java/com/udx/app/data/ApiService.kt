@@ -35,6 +35,12 @@ interface ApiService {
     @POST("auth/otp/verify")
     suspend fun verifyTelegramOtp(@Body body: TelegramOtpVerify): MessageResponse
 
+    @POST("auth/otp/init-phone")
+    suspend fun initPhoneOtp(@Body body: PhoneOtpInit): PhoneOtpInitResponse
+
+    @POST("auth/otp/verify-phone")
+    suspend fun verifyPhoneOtp(@Body body: PhoneOtpVerify): MessageResponse
+
     @POST("users/")
     suspend fun register(@Body user: UserCreate): User
 

@@ -179,19 +179,8 @@ async def get_recommendations(limit: int = 10, current_user: models.User = Depen
 async def get_categories():
     categories = await models.Category.find_all().to_list()
     if not categories:
-        # Seed initial categories if none exist
-        initial_categories = [
-            {"name": "Fruit", "icon": "🍎"},
-            {"name": "Vegetables", "icon": "🥕"},
-            {"name": "Dairy", "icon": "🥛"},
-            {"name": "Grain", "icon": "🌾"},
-            {"name": "Meat", "icon": "🥩"}
-        ]
-        for cat_data in initial_categories:
-            new_cat = models.Category(
-                id=str(uuid.uuid4()),
-                **cat_data
-            )
-            await new_cat.insert()
+        from mock_data.seed import CATEGORIES
+        for cat_data in CATEGORIES:
+            await models.Category(**cat_data).insert()
         categories = await models.Category.find_all().to_list()
     return categories

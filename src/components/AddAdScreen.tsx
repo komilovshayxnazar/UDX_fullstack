@@ -106,7 +106,7 @@ export function AddAdScreen({ onProductAdded, token }: AddAdScreenProps) {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-24">
+    <div className="min-h-screen bg-background pb-24">
       {/* Header */}
       <div className="bg-gradient-to-r from-[#af47ff] to-[#8b2dd1] px-4 py-6 text-white">
         <h2 className="text-white">{t('manageProducts.addProduct')}</h2>
@@ -135,10 +135,10 @@ export function AddAdScreen({ onProductAdded, token }: AddAdScreenProps) {
                 <button
                   type="button"
                   onClick={handleAddImage}
-                  className="flex aspect-square flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 hover:bg-gray-100"
+                  className="flex aspect-square flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border bg-background hover:bg-accent"
                 >
-                  <Camera className="h-6 w-6 text-gray-400" />
-                  <span className="text-xs text-gray-500">{t('common.add')}</span>
+                  <Camera className="h-6 w-6 text-muted-foreground" />
+                  <span className="text-xs text-muted-foreground">{t('common.add')}</span>
                 </button>
               )}
             </div>

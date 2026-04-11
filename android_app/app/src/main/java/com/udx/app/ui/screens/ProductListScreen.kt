@@ -11,6 +11,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Flag
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.VerifiedUser
 import androidx.compose.material3.*
@@ -473,6 +474,22 @@ fun ProductCard(
                     }
                     if (seller.isOnline) {
                         Box(modifier = Modifier.size(8.dp).background(Color(0xFF4CAF50), RoundedCornerShape(percent = 50)))
+                    }
+                    if (!product.region.isNullOrBlank()) {
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Surface(
+                            shape = RoundedCornerShape(4.dp),
+                            color = Color(0xFF9C27B0).copy(alpha = 0.1f)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
+                            ) {
+                                Icon(Icons.Default.LocationOn, contentDescription = null, tint = Color(0xFF9C27B0), modifier = Modifier.size(10.dp))
+                                Spacer(modifier = Modifier.width(2.dp))
+                                Text(product.region, fontSize = 10.sp, color = Color(0xFF9C27B0), fontWeight = FontWeight.Medium)
+                            }
+                        }
                     }
                     Spacer(modifier = Modifier.weight(1f))
                     Icon(Icons.Default.Star, contentDescription = null, tint = Color(0xFFFFC107), modifier = Modifier.size(14.dp))

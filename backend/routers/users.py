@@ -14,12 +14,22 @@ router = APIRouter(prefix="/users", tags=["users"])
 
 @router.post("/", response_model=schemas.User)
 async def create_user(user: schemas.UserCreate):
-    # If a telegram_username is provided, require that OTP was verified first
+    normalized_phone_pre = _normalize_phone(user.phone)
+    ph_pre = hmac_hash(normalized_phone_pre)
+
     if user.telegram_username:
+        # Username-based OTP flow (eski)
         if not consume_verified_session(user.telegram_username):
             raise HTTPException(
                 status_code=400,
                 detail="Telegram OTP not verified. Please complete the verification step first."
+            )
+    else:
+        # Phone-based OTP flow (yangi)
+        if not consume_verified_session(ph_pre):
+            raise HTTPException(
+                status_code=400,
+                detail="Telefon OTP tasdiqlanmagan. Avval tasdiqlash bosqichini bajaring."
             )
 
     normalized_phone = _normalize_phone(user.phone)

@@ -38,18 +38,18 @@ export function LanguageSelectionScreen({
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-background">
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-white px-4 py-4 shadow-sm">
+      <div className="sticky top-0 z-10 bg-background px-4 py-4 shadow-sm">
         <div className="mb-4 flex items-center gap-3">
-          <button onClick={onBack} className="rounded-full p-2 hover:bg-gray-100">
+          <button onClick={onBack} className="rounded-full p-2 hover:bg-accent">
             <ArrowLeft className="h-5 w-5" />
           </button>
           <div className="flex-1">
             <h2>{t('language.title')}</h2>
             <div className="flex items-center gap-1 mt-1">
               <Sparkles className="h-3 w-3 text-[#af47ff]" />
-              <span className="text-xs text-gray-500">200+ languages supported with auto-translation</span>
+              <span className="text-xs text-muted-foreground">200+ languages supported with auto-translation</span>
             </div>
           </div>
         </div>
@@ -74,7 +74,7 @@ export function LanguageSelectionScreen({
                 {index > 0 && <div className="border-t" />}
                 <button
                   onClick={() => handleLanguageSelect(language.code)}
-                  className="flex w-full items-center gap-4 p-4 text-left hover:bg-gray-50"
+                  className="flex w-full items-center gap-4 p-4 text-left hover:bg-background"
                 >
                   <span className="text-3xl">{language.flag}</span>
                   <div className="flex-1">
@@ -87,7 +87,7 @@ export function LanguageSelectionScreen({
                         </span>
                       )}
                     </div>
-                    <div className="text-gray-500">{language.nativeName}</div>
+                    <div className="text-muted-foreground">{language.nativeName}</div>
                   </div>
                   {selectedLanguage === language.code && (
                     <Check className="h-5 w-5 text-[#af47ff]" />
@@ -99,7 +99,7 @@ export function LanguageSelectionScreen({
         </Card>
 
         {filteredLanguages.length === 0 && (
-          <div className="py-12 text-center text-gray-500">
+          <div className="py-12 text-center text-muted-foreground">
             No languages found
           </div>
         )}

@@ -5,9 +5,10 @@ import retrofit2.converter.gson.GsonConverterFactory
 
 import okhttp3.OkHttpClient
 import okhttp3.Interceptor
+import okhttp3.logging.HttpLoggingInterceptor
+import android.util.Log
 
 object NetworkModule {
-    // 10.0.2.2 is the special alias to your host loopback interface (localhost)
     private const val BASE_URL = "http://10.0.2.2:8000/"
 
     private val authInterceptor = Interceptor { chain ->
@@ -19,8 +20,15 @@ object NetworkModule {
         chain.proceed(requestBuilder.build())
     }
 
+    private val loggingInterceptor = HttpLoggingInterceptor { message ->
+        Log.d("OkHttp", message)
+    }.apply {
+        level = HttpLoggingInterceptor.Level.BODY
+    }
+
     private val client = OkHttpClient.Builder()
         .addInterceptor(authInterceptor)
+        .addInterceptor(loggingInterceptor)
         .followRedirects(false)
         .followSslRedirects(false)
         .build()

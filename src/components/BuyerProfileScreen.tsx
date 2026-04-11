@@ -43,7 +43,7 @@ export function BuyerProfileScreen({ onComplete, onBack }: BuyerProfileScreenPro
           Tell us about yourself
         </p>
 
-        <form onSubmit={handleSubmit} className="space-y-6 rounded-2xl bg-white p-6">
+        <form onSubmit={handleSubmit} className="space-y-6 rounded-2xl bg-background p-6">
           <div className="flex flex-col items-center">
             <div className="mb-4 flex h-24 w-24 items-center justify-center overflow-hidden rounded-full bg-[#af47ff]/20">
               {photo ? (

@@ -81,6 +81,8 @@
     <string name="help_support">Yordam va qo\'llab-quvvatlash</string>
     <string name="terms_use">Foydalanish shartlari</string>
     <string name="privacy_policy">Maxfiylik siyosati</string>
+    <string name="contracts_coming_soon_title">Tez kunda ishga tushadi</string>
+    <string name="contracts_coming_soon_desc">Shartnomalar va hujjatlar maxfiylik talablari sababli tashqi serverlarda saqlanishi taqiqlangan. Bu bo\'lim yaqin orada to\'liq ishga tushiriladi.</string>
     <string name="language_en">English</string>
     <string name="language_es">EspaГ±ol</string>
     <string name="language_fr">FranГ§ais</string>
@@ -90,21 +92,21 @@
     <string name="language_kk">ТљР°Р·Р°Т›</string>
     <string name="language_ky">РљС‹СЂРіС‹Р·С‡Р°</string>
     <string name="language_tg">РўРѕТ·РёРєУЈ</string>
-    <string name="create_account">Create Account</string>
-    <string name="continue_btn">Continue</string>
-    <string name="back">Back</string>
-    <string name="verify">Verify</string>
-    <string name="telegram_username">Telegram Username</string>
-    <string name="telegram_hint">Open Telegram, find the UDX bot and send /start, then come back here.</string>
-    <string name="otp_sent_to">Code sent to @%1$s on Telegram</string>
-    <string name="enter_otp_code">Enter 6-digit code</string>
-    <string name="create_password">Create Password</string>
-    <string name="confirm_password">Confirm Password</string>
-    <string name="passwords_dont_match">Passwords do not match</string>
-    <string name="register_step_info">Step 1 of 3 — Enter your details</string>
-    <string name="register_step_otp">Step 2 of 3 — Verify Telegram</string>
-    <string name="register_step_password">Step 3 of 3 — Set your password</string>
-    <string name="send_code">Send Code</string>
-    <string name="change_telegram">Use a different Telegram username</string>
+    <string name="create_account">Akkaunt yaratish</string>
+    <string name="continue_btn">Davom etish</string>
+    <string name="back">Orqaga</string>
+    <string name="verify">Tasdiqlash</string>
+    <string name="telegram_username">Telegram foydalanuvchi nomi</string>
+    <string name="telegram_hint">Telegramni oching, UDX botini toping va /start yuboring, keyin bu yerga qayting.</string>
+    <string name="otp_sent_to">@%1$s ga Telegram orqali kod yuborildi</string>
+    <string name="enter_otp_code">6 xonali kodni kiriting</string>
+    <string name="create_password">Parol yaratish</string>
+    <string name="confirm_password">Parolni tasdiqlash</string>
+    <string name="passwords_dont_match">Parollar mos kelmaydi</string>
+    <string name="register_step_info">1-qadam 3 tadan — Ma\'lumotlaringizni kiriting</string>
+    <string name="register_step_otp">2-qadam 3 tadan — Telegramni tasdiqlang</string>
+    <string name="register_step_password">3-qadam 3 tadan — Parol o\'rnating</string>
+    <string name="send_code">Kod yuborish</string>
+    <string name="change_telegram">Boshqa Telegram foydalanuvchi nomini ishlatish</string>
 </resources>
 

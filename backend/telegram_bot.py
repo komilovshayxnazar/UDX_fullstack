@@ -37,28 +37,81 @@ def _save_store(store: dict[str, int]) -> None:
 # In-memory + on-disk store: { telegram_username (lowercase) -> chat_id }
 _username_to_chat_id: dict[str, int] = _load_store()
 
+# Token store: { token -> chat_id } — set when user taps Start with a token
+# OTP sending is triggered from auth.py after this is populated
+_token_to_chat_id: dict[str, int] = {}
+
 # Global Application reference (set when bot starts)
 _app: Application | None = None
 
 
 async def _start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle /start command — register the user's chat_id."""
+    """Handle /start [token] — register chat_id by token (phone-based flow)."""
     user = update.effective_user
-    if user and user.username:
-        username = user.username.lower().lstrip("@")
-        _username_to_chat_id[username] = update.effective_chat.id
-        _save_store(_username_to_chat_id)
-        logger.info(f"[TelegramBot] Registered chat_id for @{username}: {update.effective_chat.id}")
+    chat_id = update.effective_chat.id
+    args = context.args  # payload after /start
+
+    if args:
+        # Phone-based flow: /start TOKEN
+        token = args[0].strip()
+        _token_to_chat_id[token] = chat_id
+        logger.info(f"[TelegramBot] Token {token!r} mapped to chat_id={chat_id}")
         await update.message.reply_text(
-            "✅ You're all set! When you request a signup code on UDX, "
-            "I'll send it to you here.\n\n"
-            "Go back to the app and continue registration 🚀"
+            "✅ Tayyor! Tasdiqlash kodi hozir yuborilmoqda...\n\n"
+            "Kodni olgach, ilovaga qaytib kiriting 📱"
+        )
+        # Notify auth.py that the user arrived — it will send OTP via callback
+        if _on_token_arrived:
+            import asyncio
+            asyncio.create_task(_on_token_arrived(token, chat_id))
+    elif user and user.username:
+        # Legacy username-based flow
+        username = user.username.lower().lstrip("@")
+        _username_to_chat_id[username] = chat_id
+        _save_store(_username_to_chat_id)
+        logger.info(f"[TelegramBot] Registered chat_id for @{username}: {chat_id}")
+        await update.message.reply_text(
+            "✅ Tayyor! UDX da ro'yxatdan o'tish kodi shu yerga yuboriladi.\n\n"
+            "Ilovaga qaytib ro'yxatdan o'tishni davom eting 🚀"
         )
     else:
         await update.message.reply_text(
-            "⚠️ Your Telegram account needs a username for OTP delivery. "
-            "Please set a username in Telegram settings and try again."
+            "UDX ilovasidan ro'yxatdan o'tish uchun bu botni oching.\n"
+            "Agar muammo bo'lsa, ilovadagi yo'riqnomani ko'ring."
         )
+
+# Callback: set by auth.py to handle token arrival
+_on_token_arrived = None
+
+def set_token_callback(callback) -> None:
+    global _on_token_arrived
+    _on_token_arrived = callback
+
+
+async def send_otp_to_chat(chat_id: int, otp_code: str) -> bool:
+    """Send OTP directly to a chat_id (phone-based flow)."""
+    if not _app:
+        return False
+    try:
+        await _app.bot.send_message(
+            chat_id=chat_id,
+            text=(
+                f"🔐 UDX tasdiqlash kodingiz:\n\n"
+                f"  `{otp_code}`\n\n"
+                f"Kod 5 daqiqa davomida amal qiladi. Hech kimga bermang."
+            ),
+            parse_mode="Markdown"
+        )
+        logger.info(f"[TelegramBot] OTP sent to chat_id={chat_id}")
+        return True
+    except Exception as e:
+        logger.error(f"[TelegramBot] Failed to send OTP to chat_id={chat_id}: {e}")
+        return False
+
+
+def get_chat_id_by_token(token: str) -> int | None:
+    """Return chat_id for a given token, or None."""
+    return _token_to_chat_id.get(token)
 
 
 async def send_otp(telegram_username: str, otp_code: str) -> bool:

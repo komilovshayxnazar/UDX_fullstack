@@ -50,22 +50,22 @@ export function FavoritesScreen({
   const categories = Array.from(new Set(favoriteProducts.map(p => p.category)));
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-background">
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-white px-4 py-4 shadow-sm">
+      <div className="sticky top-0 z-10 bg-background px-4 py-4 shadow-sm">
         <div className="mb-4 flex items-center gap-3">
-          <button onClick={onBack} className="rounded-full p-2 hover:bg-gray-100">
+          <button onClick={onBack} className="rounded-full p-2 hover:bg-accent">
             <ArrowLeft className="h-5 w-5" />
           </button>
           <div className="flex-1">
             <h2>Favorites</h2>
-            <p className="text-gray-600">{favoriteProducts.length} products</p>
+            <p className="text-muted-foreground">{favoriteProducts.length} products</p>
           </div>
         </div>
 
         {/* Search */}
         <div className="relative mb-3">
-          <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="Search favorites..."
             value={searchQuery}
@@ -106,9 +106,9 @@ export function FavoritesScreen({
       <div className="px-4 py-4">
         {sortedProducts.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12">
-            <Heart className="mb-4 h-16 w-16 text-gray-300" />
+            <Heart className="mb-4 h-16 w-16 text-muted-foreground" />
             <h3 className="mb-2">No Favorites Yet</h3>
-            <p className="text-center text-gray-600">
+            <p className="text-center text-muted-foreground">
               {favoriteProducts.length === 0 
                 ? "Start adding products to your favorites!"
                 : "No products match your search"}
@@ -139,7 +139,7 @@ export function FavoritesScreen({
                         className="flex-1 cursor-pointer"
                       >
                         <h4 className="mb-1">{product.name}</h4>
-                        <div className="mb-2 flex items-center gap-2 text-gray-600">
+                        <div className="mb-2 flex items-center gap-2 text-muted-foreground">
                           <div className="flex items-center gap-1">
                             <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
                             <span>{product.rating}</span>
@@ -153,20 +153,20 @@ export function FavoritesScreen({
                       </div>
                       <button
                         onClick={() => onRemoveFavorite(product.id)}
-                        className="rounded-full p-1 hover:bg-gray-100"
+                        className="rounded-full p-1 hover:bg-accent"
                       >
-                        <X className="h-5 w-5 text-gray-400" />
+                        <X className="h-5 w-5 text-muted-foreground" />
                       </button>
                     </div>
 
                     {/* Seller & Price */}
                     <div className="mb-2">
-                      <p className="text-gray-600">{product.farmerName}</p>
+                      <p className="text-muted-foreground">{product.farmerName}</p>
                       <div className="flex items-center gap-2">
                         <span className="text-[#af47ff]">
                           ${product.price}
                         </span>
-                        <span className="text-gray-500">/{product.unit}</span>
+                        <span className="text-muted-foreground">/{product.unit}</span>
                       </div>
                     </div>
 

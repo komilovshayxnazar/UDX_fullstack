@@ -16,7 +16,7 @@ export function MarketTrendsScreen({ onBack }: MarketTrendsScreenProps) {
   const isPositive = priceChange > 0;
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-background">
       {/* Header */}
       <div className="sticky top-0 z-10 bg-gradient-to-r from-[#af47ff] to-[#8b2dd1] px-4 py-4 text-white shadow-lg">
         <button
@@ -33,7 +33,7 @@ export function MarketTrendsScreen({ onBack }: MarketTrendsScreenProps) {
       <div className="px-4 py-6">
         {/* Current Price Card */}
         <Card className="mb-6 p-6">
-          <div className="mb-2 text-gray-600">Tomatoes (avg. price/kg)</div>
+          <div className="mb-2 text-muted-foreground">Tomatoes (avg. price/kg)</div>
           <div className="mb-2 flex items-end gap-3">
             <span className="text-[#af47ff]">${latestPrice.toFixed(2)}</span>
             <div className={`flex items-center gap-1 ${isPositive ? 'text-green-500' : 'text-red-500'}`}>
@@ -41,7 +41,7 @@ export function MarketTrendsScreen({ onBack }: MarketTrendsScreenProps) {
               <span>{isPositive ? '+' : ''}{percentChange}%</span>
             </div>
           </div>
-          <p className="text-gray-500">Last 7 days</p>
+          <p className="text-muted-foreground">Last 7 days</p>
         </Card>
 
         {/* Chart */}
@@ -75,15 +75,15 @@ export function MarketTrendsScreen({ onBack }: MarketTrendsScreenProps) {
           <h3 className="mb-4">Market Insights</h3>
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <span className="text-gray-600">Weekly High</span>
+              <span className="text-muted-foreground">Weekly High</span>
               <span className="text-green-600">${Math.max(...mockMarketTrends.map(t => t.price)).toFixed(2)}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-gray-600">Weekly Low</span>
+              <span className="text-muted-foreground">Weekly Low</span>
               <span className="text-red-600">${Math.min(...mockMarketTrends.map(t => t.price)).toFixed(2)}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-gray-600">Average Price</span>
+              <span className="text-muted-foreground">Average Price</span>
               <span className="text-[#af47ff]">
                 ${(mockMarketTrends.reduce((sum, t) => sum + t.price, 0) / mockMarketTrends.length).toFixed(2)}
               </span>

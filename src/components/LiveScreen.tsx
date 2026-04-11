@@ -131,7 +131,7 @@ export function LiveScreen({ userRole }: LiveScreenProps) {
           <div className="relative flex-1 bg-gray-900">
             {/* Simulated camera view */}
             <div className="h-full w-full flex items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900">
-              <Video className="h-24 w-24 text-gray-600" />
+              <Video className="h-24 w-24 text-muted-foreground" />
             </div>
             
             {/* End Broadcast Button */}
@@ -144,7 +144,7 @@ export function LiveScreen({ userRole }: LiveScreenProps) {
 
             {/* Live Badge */}
             <div className="absolute left-4 top-4 flex items-center gap-2 rounded-full bg-red-500 px-3 py-1 text-white">
-              <div className="h-2 w-2 animate-pulse rounded-full bg-white" />
+              <div className="h-2 w-2 animate-pulse rounded-full bg-background" />
               <span>LIVE</span>
             </div>
 
@@ -174,12 +174,12 @@ export function LiveScreen({ userRole }: LiveScreenProps) {
             {/* Messages */}
             <div className="flex-1 overflow-y-auto px-4 py-2 space-y-2">
               {chatMessages.length === 0 ? (
-                <p className="text-gray-500 text-center py-4">Waiting for viewers to join...</p>
+                <p className="text-muted-foreground text-center py-4">Waiting for viewers to join...</p>
               ) : (
                 chatMessages.map((msg) => (
                   <div key={msg.id} className="text-white">
                     <span className="text-[#af47ff]">{msg.username}: </span>
-                    <span className="text-gray-300">{msg.message}</span>
+                    <span className="text-muted-foreground">{msg.message}</span>
                   </div>
                 ))
               )}
@@ -233,7 +233,7 @@ export function LiveScreen({ userRole }: LiveScreenProps) {
             {/* Live Badge */}
             {selectedStream.isLive && (
               <div className="absolute left-4 top-4 flex items-center gap-2 rounded-full bg-red-500 px-3 py-1 text-white">
-                <div className="h-2 w-2 animate-pulse rounded-full bg-white" />
+                <div className="h-2 w-2 animate-pulse rounded-full bg-background" />
                 <span>LIVE</span>
               </div>
             )}
@@ -266,7 +266,7 @@ export function LiveScreen({ userRole }: LiveScreenProps) {
           {/* Stream Info & Chat */}
           <div className="h-1/3 bg-gray-900 p-4 text-white">
             <h3 className="mb-2 text-white">{selectedStream.title}</h3>
-            <p className="mb-4 text-gray-400">{selectedStream.seller}</p>
+            <p className="mb-4 text-muted-foreground">{selectedStream.seller}</p>
 
             {/* Chat Input */}
             <div className="flex gap-2">
@@ -288,7 +288,7 @@ export function LiveScreen({ userRole }: LiveScreenProps) {
 
   // Main live streams list
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
+    <div className="min-h-screen bg-background pb-20">
       {/* Header */}
       <div className="bg-gradient-to-r from-[#af47ff] to-[#8b2dd1] px-4 py-6 text-white">
         <div className="flex items-center justify-between mb-4">
@@ -328,7 +328,7 @@ export function LiveScreen({ userRole }: LiveScreenProps) {
                 />
                 {stream.isLive && (
                   <div className="absolute left-2 top-2 flex items-center gap-1 rounded bg-red-500 px-2 py-1 text-white">
-                    <div className="h-1.5 w-1.5 animate-pulse rounded-full bg-white" />
+                    <div className="h-1.5 w-1.5 animate-pulse rounded-full bg-background" />
                     <span className="text-xs">LIVE</span>
                   </div>
                 )}
@@ -339,7 +339,7 @@ export function LiveScreen({ userRole }: LiveScreenProps) {
               </div>
               <div className="p-4">
                 <h4 className="mb-1">{stream.title}</h4>
-                <p className="text-gray-600">{stream.seller}</p>
+                <p className="text-muted-foreground">{stream.seller}</p>
               </div>
             </Card>
           ))}
