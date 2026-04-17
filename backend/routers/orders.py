@@ -5,6 +5,7 @@ from typing import List
 import models
 import schemas
 from core.dependencies import get_current_user
+from core.errors import E
 
 router = APIRouter(prefix="/orders", tags=["orders"])
 
@@ -17,15 +18,12 @@ async def create_order(order: schemas.OrderCreate, current_user: models.User = D
     for item in order.items:
         product = await models.Product.get(item.product_id)
         if not product:
-            raise HTTPException(status_code=404, detail=f"Product {item.product_id} not found")
+            raise HTTPException(status_code=404, detail=E.PRODUCT_NOT_FOUND)
 
         if seller_id is None:
             seller_id = product.seller_id
         elif str(product.seller_id) != str(seller_id):
-            raise HTTPException(
-                status_code=400,
-                detail="All items in an order must belong to the same seller"
-            )
+            raise HTTPException(status_code=400, detail=E.SINGLE_SELLER_CONSTRAINT)
 
         price = product.price
         total += price * item.quantity

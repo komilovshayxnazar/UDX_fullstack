@@ -11,6 +11,7 @@ from core.cache import (
     cache_get, cache_set, cache_delete, cache_delete_pattern,
     CATEGORIES_TTL, PRODUCTS_TTL,
 )
+from core.errors import E
 from beanie import PydanticObjectId
 from beanie.operators import In
 
@@ -22,11 +23,11 @@ ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
 @router.post("/upload/image/")
 async def upload_image(file: UploadFile = File(...)):
     if file.content_type not in ALLOWED_IMAGE_TYPES:
-        raise HTTPException(status_code=400, detail="File must be a JPEG, PNG, WebP, or GIF image")
+        raise HTTPException(status_code=400, detail=E.INVALID_IMAGE_TYPE)
 
     contents = await file.read(MAX_UPLOAD_SIZE + 1)
     if len(contents) > MAX_UPLOAD_SIZE:
-        raise HTTPException(status_code=413, detail="File too large. Maximum size is 5 MB")
+        raise HTTPException(status_code=413, detail=E.FILE_TOO_LARGE)
 
     file_extension = os.path.splitext(file.filename)[1]
     unique_filename = f"{uuid.uuid4()}{file_extension}"
@@ -42,8 +43,8 @@ async def upload_image(file: UploadFile = File(...)):
 async def add_price_history(product_id: str, price_data: schemas.PriceHistoryCreate):
     product = await models.Product.get(product_id)
     if not product:
-        raise HTTPException(status_code=404, detail="Product not found")
-        
+        raise HTTPException(status_code=404, detail=E.PRODUCT_NOT_FOUND)
+
     new_price = models.PriceHistory(
         product_id=product_id,
         **price_data.model_dump()
@@ -57,8 +58,8 @@ async def add_price_history(product_id: str, price_data: schemas.PriceHistoryCre
 async def get_price_history(product_id: str):
     product = await models.Product.get(product_id)
     if not product:
-        raise HTTPException(status_code=404, detail="Product not found")
-        
+        raise HTTPException(status_code=404, detail=E.PRODUCT_NOT_FOUND)
+
     prices = await models.PriceHistory.find(models.PriceHistory.product_id == product_id).sort("date").to_list()
     return prices
 
@@ -127,7 +128,7 @@ async def read_products(
 @router.post("/products/", response_model=schemas.Product)
 async def create_product(product: schemas.ProductCreate, current_user: models.User = Depends(get_current_user)):
     if current_user.role != models.UserRole.seller:
-         raise HTTPException(status_code=403, detail="Only sellers can create products")
+        raise HTTPException(status_code=403, detail=E.SELLER_ONLY)
 
     new_product = models.Product(
         seller_id=str(current_user.id),
@@ -141,7 +142,7 @@ async def create_product(product: schemas.ProductCreate, current_user: models.Us
 async def read_product(product_id: str):
     product = await models.Product.get(product_id)
     if product is None:
-        raise HTTPException(status_code=404, detail="Product not found")
+        raise HTTPException(status_code=404, detail=E.PRODUCT_NOT_FOUND)
     return product
 
 @router.post("/products/interactions/")

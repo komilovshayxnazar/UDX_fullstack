@@ -10,6 +10,7 @@ import models
 from core.dependencies import get_current_user
 from core.security import SECRET_KEY, ALGORITHM
 from core.websocket import chat_manager
+from core.errors import E
 
 
 def _msg_dict(msg: models.Message) -> dict:
@@ -78,7 +79,7 @@ async def get_chat_messages(chat_id: str, current_user: models.User = Depends(ge
         chat = None
 
     if not chat:
-        raise HTTPException(status_code=404, detail="Chat not found")
+        raise HTTPException(status_code=404, detail=E.CHAT_NOT_FOUND)
 
     messages = await models.Message.find(
         models.Message.chat_id == chat_id
@@ -97,7 +98,7 @@ async def send_message(
         chat = None
 
     if not chat:
-        raise HTTPException(status_code=404, detail="Chat not found")
+        raise HTTPException(status_code=404, detail=E.CHAT_NOT_FOUND)
 
     new_message = models.Message(
         chat_id=chat_id,
@@ -124,7 +125,7 @@ async def mark_chat_as_read(chat_id: str, current_user: models.User = Depends(ge
         chat = None
     
     if not chat:
-        raise HTTPException(status_code=404, detail="Chat not found or you don't have permission")
+        raise HTTPException(status_code=404, detail=E.CHAT_PERMISSION_DENIED)
     
     old_count = chat.unread_count
     chat.unread_count = 0

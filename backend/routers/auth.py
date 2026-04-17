@@ -12,6 +12,7 @@ import models
 import schemas
 from core.security import verify_password, create_access_token, ACCESS_TOKEN_EXPIRE_MINUTES
 from core.encryption import encrypt, decrypt, hmac_hash
+from core.errors import E
 from telegram_bot import send_otp, get_chat_id, send_otp_to_chat, get_chat_id_by_token, set_token_callback
 
 # In-memory OTP store: { telegram_username -> (code, expires_at, attempts) }
@@ -105,20 +106,20 @@ async def verify_phone_otp(body: schemas.PhoneOtpVerify):
 
     entry = _phone_otp_store.get(phone_hash)
     if not entry:
-        raise HTTPException(status_code=400, detail="OTP topilmadi. Qaytadan so'rang.")
+        raise HTTPException(status_code=400, detail=E.OTP_NOT_FOUND)
 
     code, expires_at, attempts = entry
     if time.time() > expires_at:
         _phone_otp_store.pop(phone_hash, None)
-        raise HTTPException(status_code=400, detail="OTP muddati o'tdi. Qaytadan so'rang.")
+        raise HTTPException(status_code=400, detail=E.OTP_EXPIRED)
 
     if attempts >= OTP_MAX_ATTEMPTS:
         _phone_otp_store.pop(phone_hash, None)
-        raise HTTPException(status_code=429, detail="Juda ko'p urinish. Qaytadan so'rang.")
+        raise HTTPException(status_code=429, detail=E.OTP_TOO_MANY_ATTEMPTS)
 
     if body.code != code:
         _phone_otp_store[phone_hash] = (code, expires_at, attempts + 1)
-        raise HTTPException(status_code=400, detail="Noto'g'ri OTP kodi.")
+        raise HTTPException(status_code=400, detail=E.OTP_INVALID)
 
     _phone_otp_store.pop(phone_hash, None)
     # Verified session saqlash (username o'rniga phone_hash ishlatamiz)
@@ -153,7 +154,7 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
     if not user or not verify_password(form_data.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
+            detail=E.INCORRECT_CREDENTIALS,
             headers={"WWW-Authenticate": "Bearer"},
         )
     access_token = create_access_token(
@@ -202,17 +203,17 @@ async def google_callback(code: str, state: str = None):
     async with httpx.AsyncClient() as client:
         token_response = await client.post(token_url, data=token_data)
         if token_response.status_code != 200:
-            raise HTTPException(status_code=400, detail="Failed to get access token")
-        
+            raise HTTPException(status_code=400, detail=E.GOOGLE_TOKEN_FAILED)
+
         tokens = token_response.json()
         access_token = tokens.get("access_token")
-        
+
         userinfo_url = "https://www.googleapis.com/oauth2/v2/userinfo"
         headers = {"Authorization": f"Bearer {access_token}"}
         userinfo_response = await client.get(userinfo_url, headers=headers)
-        
+
         if userinfo_response.status_code != 200:
-            raise HTTPException(status_code=400, detail="Failed to get user info")
+            raise HTTPException(status_code=400, detail=E.GOOGLE_USERINFO_FAILED)
         
         user_info = userinfo_response.json()
     
@@ -267,7 +268,7 @@ async def request_telegram_otp(body: schemas.TelegramOtpRequest):
     if not get_chat_id(username):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Telegram user not found. Please open Telegram, find the UDX bot, and send /start first."
+            detail=E.TELEGRAM_USER_NOT_FOUND,
         )
 
     code = str(random.randint(100000, 999999))
@@ -277,7 +278,7 @@ async def request_telegram_otp(body: schemas.TelegramOtpRequest):
     if not sent:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to send OTP via Telegram. Please try again."
+            detail=E.TELEGRAM_OTP_FAILED,
         )
 
     return {"detail": "OTP sent to your Telegram."}
@@ -290,20 +291,20 @@ async def verify_telegram_otp(body: schemas.TelegramOtpVerify):
 
     entry = _otp_store.get(username)
     if not entry:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No OTP found. Please request a new code.")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=E.OTP_NOT_FOUND)
 
     code, expires_at, attempts = entry
     if time.time() > expires_at:
         _otp_store.pop(username, None)
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="OTP has expired. Please request a new code.")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=E.OTP_EXPIRED)
 
     if attempts >= OTP_MAX_ATTEMPTS:
         _otp_store.pop(username, None)
-        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="Too many failed attempts. Please request a new code.")
+        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=E.OTP_TOO_MANY_ATTEMPTS)
 
     if body.code != code:
         _otp_store[username] = (code, expires_at, attempts + 1)
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid OTP code.")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=E.OTP_INVALID)
 
     # Consume the OTP so it can't be reused
     _otp_store.pop(username, None)

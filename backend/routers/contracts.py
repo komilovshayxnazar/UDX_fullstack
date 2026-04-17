@@ -57,9 +57,10 @@ async def create_contract(
     current_user: models.User = Depends(get_current_user)
 ):
     """Create a new contract. The current user is the seller."""
+    from core.errors import E
     buyer = await models.User.get(contract.buyer_id)
     if not buyer:
-        raise HTTPException(status_code=404, detail="Buyer not found")
+        raise HTTPException(status_code=404, detail=E.BUYER_NOT_FOUND)
 
     new_contract = models.Contract(
         buyer_id=contract.buyer_id,
@@ -93,11 +94,10 @@ async def update_contract_status(
     """Update contract status — only accessible to buyer or seller."""
     contract = await models.Contract.get(contract_id)
     if not contract:
-        raise HTTPException(status_code=404, detail="Contract not found")
+        raise HTTPException(status_code=404, detail=E.CONTRACT_NOT_FOUND)
 
-    # Only the two parties can update
     if contract.buyer_id != str(current_user.id) and contract.seller_id != str(current_user.id):
-        raise HTTPException(status_code=403, detail="Access denied")
+        raise HTTPException(status_code=403, detail=E.ACCESS_DENIED)
 
     contract.status = status
     await contract.save()

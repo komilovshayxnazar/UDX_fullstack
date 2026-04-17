@@ -20,6 +20,7 @@ from core.cache import (
     cache_get, cache_set, cache_delete, cache_delete_pattern,
     PROFILE_TTL, REVIEWS_TTL,
 )
+from core.errors import E
 from beanie import PydanticObjectId
 from beanie.operators import In
 
@@ -35,27 +36,24 @@ async def create_review(
     current_user: models.User = Depends(get_current_user)
 ):
     if current_user.role != models.UserRole.buyer:
-        raise HTTPException(status_code=403, detail="Only buyers can leave reviews")
+        raise HTTPException(status_code=403, detail=E.BUYER_ONLY_REVIEWS)
 
-    # Buyurtma mavjud va tugallanganmi?
     order = await models.Order.get(body.order_id)
     if not order:
-        raise HTTPException(status_code=404, detail="Order not found")
+        raise HTTPException(status_code=404, detail=E.ORDER_NOT_FOUND)
     if order.buyer_id != str(current_user.id):
-        raise HTTPException(status_code=403, detail="This order does not belong to you")
+        raise HTTPException(status_code=403, detail=E.ORDER_NOT_YOURS)
     if order.status != models.OrderStatus.completed:
-        raise HTTPException(status_code=400, detail="You can only review completed orders")
+        raise HTTPException(status_code=400, detail=E.COMPLETED_ORDERS_ONLY)
     if order.seller_id != body.seller_id:
-        raise HTTPException(status_code=400, detail="Seller does not match the order")
+        raise HTTPException(status_code=400, detail=E.SELLER_MISMATCH)
 
-    # O'z sotuvchisiga sharh qoldirish taqiqlangan
     if body.seller_id == str(current_user.id):
-        raise HTTPException(status_code=400, detail="You cannot review yourself")
+        raise HTTPException(status_code=400, detail=E.SELF_REVIEW_FORBIDDEN)
 
-    # Duplicate tekshiruv (unique index qaytaradi, lekin yaxshi xabar berish uchun)
     existing = await models.Review.find_one(models.Review.order_id == body.order_id)
     if existing:
-        raise HTTPException(status_code=409, detail="You already reviewed this order")
+        raise HTTPException(status_code=409, detail=E.REVIEW_ALREADY_EXISTS)
 
     review = models.Review(
         reviewer_id=str(current_user.id),
@@ -147,16 +145,15 @@ async def report_fraud(
     current_user: models.User = Depends(get_current_user)
 ):
     if not body.target_user_id and not body.target_product_id:
-        raise HTTPException(status_code=400, detail="Specify either target_user_id or target_product_id")
+        raise HTTPException(status_code=400, detail=E.SPECIFY_REPORT_TARGET)
 
-    # Spam himoyasi: bitta target uchun 3 tadan ko'p shikoyat bo'lmasligi kerak
     if body.target_user_id:
         count = await models.FraudReport.find(
             models.FraudReport.reporter_id == str(current_user.id),
             models.FraudReport.target_user_id == body.target_user_id
         ).count()
         if count >= 3:
-            raise HTTPException(status_code=429, detail="You have already reported this user multiple times")
+            raise HTTPException(status_code=429, detail=E.USER_REPORT_LIMIT)
 
     if body.target_product_id:
         count = await models.FraudReport.find(
@@ -164,7 +161,7 @@ async def report_fraud(
             models.FraudReport.target_product_id == body.target_product_id
         ).count()
         if count >= 3:
-            raise HTTPException(status_code=429, detail="You have already reported this product multiple times")
+            raise HTTPException(status_code=429, detail=E.PRODUCT_REPORT_LIMIT)
 
     report = models.FraudReport(
         reporter_id=str(current_user.id),

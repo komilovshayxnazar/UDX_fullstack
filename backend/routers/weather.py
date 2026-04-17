@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException
 import httpx
 import os
+from core.errors import E
 
 router = APIRouter(tags=["weather"])
 
@@ -9,7 +10,7 @@ async def get_weather(lat: float, lon: float):
     api_key = os.getenv("OPENWEATHER_API_KEY")
     
     if not api_key:
-        raise HTTPException(status_code=500, detail="Weather API key not configured")
+        raise HTTPException(status_code=500, detail=E.WEATHER_API_NOT_CONFIGURED)
     
     url = f"https://api.openweathermap.org/data/2.5/weather?lat={lat}&lon={lon}&appid={api_key}&units=metric"
     
@@ -17,7 +18,7 @@ async def get_weather(lat: float, lon: float):
         response = await client.get(url)
         
         if response.status_code != 200:
-            raise HTTPException(status_code=response.status_code, detail="Failed to fetch weather data")
+            raise HTTPException(status_code=response.status_code, detail=E.WEATHER_FETCH_FAILED)
         
         data = response.json()
         

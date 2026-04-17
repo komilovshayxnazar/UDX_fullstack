@@ -7,6 +7,7 @@ from core.dependencies import get_current_user
 from core.security import get_password_hash, verify_password
 from core.encryption import encrypt, decrypt, hmac_hash
 from core.cache import cache_get, cache_set, cache_delete, PROFILE_TTL
+from core.errors import E
 from fastapi.encoders import jsonable_encoder
 from routers.auth import consume_verified_session, _normalize_phone
 from services import wallet_service, payment_service
@@ -22,23 +23,17 @@ async def create_user(user: schemas.UserCreate):
     if user.telegram_username:
         # Username-based OTP flow (eski)
         if not consume_verified_session(user.telegram_username):
-            raise HTTPException(
-                status_code=400,
-                detail="Telegram OTP not verified. Please complete the verification step first."
-            )
+            raise HTTPException(status_code=400, detail=E.TELEGRAM_OTP_NOT_VERIFIED)
     else:
         # Phone-based OTP flow (yangi)
         if not consume_verified_session(ph_pre):
-            raise HTTPException(
-                status_code=400,
-                detail="Telefon OTP tasdiqlanmagan. Avval tasdiqlash bosqichini bajaring."
-            )
+            raise HTTPException(status_code=400, detail=E.PHONE_OTP_NOT_VERIFIED)
 
     normalized_phone = _normalize_phone(user.phone)
     ph = hmac_hash(normalized_phone)
     db_user = await models.User.find_one(models.User.phone_hash == ph)
     if db_user:
-        raise HTTPException(status_code=400, detail="Phone already registered")
+        raise HTTPException(status_code=400, detail=E.PHONE_ALREADY_REGISTERED)
     hashed_password = get_password_hash(user.password)
     tg = user.telegram_username.lower().lstrip("@") if user.telegram_username else None
     new_user = models.User(
@@ -67,7 +62,7 @@ async def get_public_profile(user_id: str):
 
     user = await models.User.get(user_id)
     if not user or not user.is_public:
-        raise HTTPException(status_code=404, detail="User not found or profile is private")
+        raise HTTPException(status_code=404, detail=E.USER_NOT_FOUND)
 
     # Savdo statistikasi
     orders = await models.Order.find(models.Order.seller_id == user_id).to_list()
@@ -138,11 +133,11 @@ async def update_password_me(
     current_user: models.User = Depends(get_current_user)
 ):
     if not current_user.hashed_password:
-        raise HTTPException(status_code=400, detail="Cannot change password for OAuth users")
-    
+        raise HTTPException(status_code=400, detail=E.OAUTH_NO_PASSWORD)
+
     if not verify_password(password_update.current_password, current_user.hashed_password):
-        raise HTTPException(status_code=400, detail="Incorrect password")
-        
+        raise HTTPException(status_code=400, detail=E.INCORRECT_PASSWORD)
+
     current_user.hashed_password = get_password_hash(password_update.new_password)
     await current_user.save()
     return {"message": "Password updated successfully"}
@@ -153,16 +148,16 @@ async def update_phone_me(
     current_user: models.User = Depends(get_current_user)
 ):
     if not current_user.hashed_password:
-        raise HTTPException(status_code=400, detail="Cannot change phone for OAuth users")
-    
+        raise HTTPException(status_code=400, detail=E.OAUTH_NO_PASSWORD)
+
     if not verify_password(phone_update.password, current_user.hashed_password):
-        raise HTTPException(status_code=400, detail="Incorrect password")
+        raise HTTPException(status_code=400, detail=E.INCORRECT_PASSWORD)
         
     new_phone = _normalize_phone(phone_update.new_phone)
     new_ph    = hmac_hash(new_phone)
     existing  = await models.User.find_one(models.User.phone_hash == new_ph)
     if existing:
-        raise HTTPException(status_code=400, detail="Phone number already registered")
+        raise HTTPException(status_code=400, detail=E.PHONE_ALREADY_REGISTERED)
     current_user.phone      = encrypt(new_phone)
     current_user.phone_hash = new_ph
     await current_user.save()
@@ -175,7 +170,7 @@ async def update_role_me(
 ):
     allowed_roles = {models.UserRole.buyer, models.UserRole.seller}
     if role_update.role not in allowed_roles:
-        raise HTTPException(status_code=403, detail="Cannot assign this role")
+        raise HTTPException(status_code=403, detail=E.ROLE_FORBIDDEN)
     current_user.role = role_update.role
     await current_user.save()
     return schemas.user_to_schema(current_user)
@@ -228,10 +223,10 @@ async def deposit_balance(
     current_user: models.User = Depends(get_current_user)
 ):
     if request.amount <= 0:
-        raise HTTPException(status_code=400, detail="Amount must be positive")
+        raise HTTPException(status_code=400, detail=E.AMOUNT_MUST_BE_POSITIVE)
     card = next((c for c in current_user.payment_cards if c.id == request.card_id), None)
     if not card:
-        raise HTTPException(status_code=400, detail="Card not found. Please add a payment card first.")
+        raise HTTPException(status_code=400, detail=E.CARD_NOT_FOUND)
 
     if not idempotency_key:
         idempotency_key = str(uuid.uuid4())
@@ -241,7 +236,7 @@ async def deposit_balance(
         idempotency_key=idempotency_key, request=http_request
     )
     if result["status"] != "success":
-        raise HTTPException(status_code=402, detail="Payment gateway declined the charge.")
+        raise HTTPException(status_code=402, detail=E.PAYMENT_DECLINED)
 
     # Skip credit on idempotent replay — gateway was not charged again so balance must not increase
     if not result.get("_replay"):
@@ -260,12 +255,12 @@ async def withdraw_balance(
     current_user: models.User = Depends(get_current_user)
 ):
     if request.amount <= 0:
-        raise HTTPException(status_code=400, detail="Amount must be positive")
+        raise HTTPException(status_code=400, detail=E.AMOUNT_MUST_BE_POSITIVE)
     if current_user.balance < request.amount:
-        raise HTTPException(status_code=400, detail="Insufficient funds")
+        raise HTTPException(status_code=400, detail=E.INSUFFICIENT_FUNDS)
     card = next((c for c in current_user.payment_cards if c.id == request.card_id), None)
     if not card:
-        raise HTTPException(status_code=400, detail="Card not found. Please add a payment card first.")
+        raise HTTPException(status_code=400, detail=E.CARD_NOT_FOUND)
 
     await wallet_service.debit(
         user=current_user, amount=request.amount, card_token=card.card_token
