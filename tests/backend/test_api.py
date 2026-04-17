@@ -1,47 +1,50 @@
-import requests
-import json
-import os
+"""
+QA tests — Asosiy API smoke tests
+    GET /health
+    GET /products/
+    GET /weather
+"""
 
-BASE_URL = os.getenv("API_URL", "http://localhost:8000")
+import pytest
+import httpx
 
-def test_health():
-    print(f"Testing Heatlh Check on {BASE_URL}/dev/health...")
-    try:
-        response = requests.get(f"{BASE_URL}/dev/health")
-        if response.status_code == 200:
-            print("✅ Health Check Passed")
-            print(json.dumps(response.json(), indent=2))
-        else:
-            print(f"❌ Health Check Failed: {response.status_code}")
-    except Exception as e:
-        print(f"❌ Error connecting to backend: {e}")
+from conftest import BASE_URL
 
-def test_get_products():
-    print(f"\nTesting Get Products on {BASE_URL}/products...")
-    try:
-        response = requests.get(f"{BASE_URL}/products")
-        if response.status_code == 200:
-            products = response.json()
-            print(f"✅ Get Products Passed. Found {len(products)} products.")
-        else:
-            print(f"❌ Get Products Failed: {response.status_code}")
-    except Exception as e:
-        print(f"❌ Error connecting to backend: {e}")
 
-def test_get_weather():
-    print(f"\nTesting Get Weather on {BASE_URL}/weather...")
-    try:
-        # Default mock location if params empty
-        response = requests.get(f"{BASE_URL}/weather")
-        if response.status_code == 200:
-            print("✅ Get Weather Passed")
-            print(json.dumps(response.json(), indent=2))
-        else:
-            print(f"❌ Get Weather Failed: {response.status_code}")
-    except Exception as e:
-        print(f"❌ Error connecting to backend: {e}")
+@pytest.fixture(scope="module")
+def client():
+    with httpx.Client(base_url=BASE_URL, timeout=10) as c:
+        yield c
 
-if __name__ == "__main__":
-    test_health()
-    test_get_products()
-    test_get_weather()
+
+class TestSmoke:
+    def test_health_check(self, client):
+        resp = client.get("/health")
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["status"] in ("ok", "degraded")
+        assert "services" in body
+
+    def test_get_products_public(self, client):
+        resp = client.get("/products/")
+        assert resp.status_code == 200
+        assert isinstance(resp.json(), list)
+
+    def test_get_categories_public(self, client):
+        resp = client.get("/categories/")
+        assert resp.status_code == 200
+        assert isinstance(resp.json(), list)
+
+    def test_weather_requires_params(self, client):
+        """lat/lon parametrisiz weather → 422 yoki 400."""
+        resp = client.get("/weather")
+        assert resp.status_code in (400, 422)
+
+    def test_weather_with_coords(self, client):
+        resp = client.get("/weather?lat=41.2995&lon=69.2401")
+        # API key yo'q bo'lsa 500, bor bo'lsa 200
+        assert resp.status_code in (200, 500)
+
+    def test_unknown_endpoint_returns_404(self, client):
+        resp = client.get("/this-does-not-exist")
+        assert resp.status_code == 404
