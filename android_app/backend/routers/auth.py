@@ -1,6 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
 import httpx
+import secrets
 from datetime import timedelta
 import os
 import uuid
@@ -14,6 +15,8 @@ from core.security import verify_password, create_access_token, ACCESS_TOKEN_EXP
 from core.encryption import encrypt, decrypt, hmac_hash
 from core.errors import E
 from core.cache import get_redis
+from core.rate_limiter import limiter
+from services.audit_service import log as audit_log
 from telegram_bot import (
     send_otp, get_chat_id,
     send_otp_to_chat, send_otp_by_phone_hash,
@@ -243,24 +246,80 @@ def _normalize_phone(raw: str) -> str:
 
 
 @router.post("/token", response_model=schemas.Token)
-async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
+@limiter.limit("10/minute")
+async def login_for_access_token(
+    request: Request,
+    form_data: OAuth2PasswordRequestForm = Depends(),
+):
     phone = _normalize_phone(form_data.username)
     ph    = hmac_hash(phone)
     user  = await models.User.find_one(models.User.phone_hash == ph)
+
     if not user or not verify_password(form_data.password, user.hashed_password):
+        # Muvaffaqiyatsiz login — audit log (user topilgan bo'lsa)
+        if user:
+            await audit_log(
+                user=user,
+                action=models.AuditAction.login_failed,
+                detail={"reason": "wrong_password"},
+                request=request,
+                success=False,
+            )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=E.INCORRECT_CREDENTIALS,
             headers={"WWW-Authenticate": "Bearer"},
         )
+
     access_token = create_access_token(
-        data={"sub": ph},   # JWT sub = phone_hash
-        expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        data={"sub": ph},
+        expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
+    )
+    await audit_log(
+        user=user,
+        action=models.AuditAction.login,
+        detail={},
+        request=request,
+        success=True,
     )
     return {"access_token": access_token, "token_type": "bearer"}
 
+_CSRF_TTL = 600  # 10 daqiqa
+
+
+async def _csrf_issue(action: str) -> str:
+    """CSRF nonce yaratadi va Redis/memory'da saqlaydi."""
+    nonce = secrets.token_urlsafe(32)
+    r = get_redis()
+    if r:
+        await r.setex(f"udx:oauth_csrf:{nonce}", _CSRF_TTL, action)
+    else:
+        _csrf_store[nonce] = (action, time.time() + _CSRF_TTL)
+    return nonce
+
+
+async def _csrf_consume(nonce: str) -> str | None:
+    """Nonce ni tekshiradi va o'chiradi. Action qaytaradi yoki None."""
+    r = get_redis()
+    if r:
+        rkey = f"udx:oauth_csrf:{nonce}"
+        action = await r.get(rkey)
+        if action:
+            await r.delete(rkey)
+            return action
+        return None
+    entry = _csrf_store.pop(nonce, None)
+    if entry and time.time() < entry[1]:
+        return entry[0]
+    return None
+
+
+_csrf_store: dict[str, tuple[str, float]] = {}
+
+
 @router.get("/auth/google/register")
 async def google_register():
+    nonce = await _csrf_issue("register")
     google_auth_url = (
         f"https://accounts.google.com/o/oauth2/v2/auth?"
         f"client_id={GOOGLE_CLIENT_ID}&"
@@ -268,12 +327,13 @@ async def google_register():
         f"response_type=code&"
         f"scope=openid%20email%20profile&"
         f"access_type=offline&"
-        f"state=register"
+        f"state=register:{nonce}"
     )
     return {"auth_url": google_auth_url}
 
 @router.get("/auth/google/login")
 async def google_login():
+    nonce = await _csrf_issue("login")
     google_auth_url = (
         f"https://accounts.google.com/o/oauth2/v2/auth?"
         f"client_id={GOOGLE_CLIENT_ID}&"
@@ -281,7 +341,7 @@ async def google_login():
         f"response_type=code&"
         f"scope=openid%20email%20profile&"
         f"access_type=offline&"
-        f"state=login"
+        f"state=login:{nonce}"
     )
     return {"auth_url": google_auth_url}
 
@@ -316,10 +376,23 @@ async def google_callback(code: str, state: str = None):
     email = user_info.get("email")
     google_id = user_info.get("id")
     name = user_info.get("name")
-    
+
+    # CSRF state tekshiruvi: "action:nonce" formatida kelishi kerak
+    action = None
+    if state and ":" in state:
+        raw_action, nonce = state.split(":", 1)
+        action = await _csrf_consume(nonce)
+        if action != raw_action:
+            raise HTTPException(status_code=400, detail="errors.oauth_invalid_state")
+    elif state in ("register", "login"):
+        # Eski client'lar uchun (CSRF yo'q) — production'da o'chirish kerak
+        action = state
+    else:
+        raise HTTPException(status_code=400, detail="errors.oauth_invalid_state")
+
     user = await models.User.find_one(models.User.phone_hash == hmac_hash(f"google_{google_id}"))
-    
-    if state == "register":
+
+    if action == "register":
         if user:
             return {"error": "already_registered"}
 
@@ -341,7 +414,7 @@ async def google_callback(code: str, state: str = None):
         )
         return {"token": app_access_token, "registered": True}
 
-    else:
+    else:  # action == "login"
         if not user:
             return {"error": "not_registered"}
 

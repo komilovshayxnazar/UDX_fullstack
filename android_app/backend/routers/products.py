@@ -19,6 +19,25 @@ router = APIRouter(tags=["products"])
 MAX_UPLOAD_SIZE = 5 * 1024 * 1024  # 5 MB
 ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
 
+# Fayl magic bytes — content-type spoofing'dan himoya
+_MAGIC: list[tuple[bytes, str]] = [
+    (b"\xff\xd8\xff",       "image/jpeg"),
+    (b"\x89PNG\r\n\x1a\n",  "image/png"),
+    (b"GIF87a",             "image/gif"),
+    (b"GIF89a",             "image/gif"),
+    (b"RIFF",               "image/webp"),   # + bytes[8:12] == b"WEBP"
+]
+
+
+def _detect_image_type(data: bytes) -> str | None:
+    for magic, mime in _MAGIC:
+        if data[:len(magic)] == magic:
+            if mime == "image/webp" and data[8:12] != b"WEBP":
+                continue
+            return mime
+    return None
+
+
 @router.post("/upload/image/")
 async def upload_image(file: UploadFile = File(...)):
     if file.content_type not in ALLOWED_IMAGE_TYPES:
@@ -28,7 +47,12 @@ async def upload_image(file: UploadFile = File(...)):
     if len(contents) > MAX_UPLOAD_SIZE:
         raise HTTPException(status_code=413, detail=E.FILE_TOO_LARGE)
 
-    url = await upload_file(contents, file.filename or "image", file.content_type)
+    # Magic bytes tekshiruvi — content-type header soxtalashtirish mumkin emas
+    real_type = _detect_image_type(contents)
+    if real_type is None or real_type not in ALLOWED_IMAGE_TYPES:
+        raise HTTPException(status_code=400, detail=E.INVALID_IMAGE_TYPE)
+
+    url = await upload_file(contents, file.filename or "image", real_type)
     return {"url": url}
 
 @router.post("/products/{product_id}/prices/", response_model=schemas.PriceHistory)

@@ -299,6 +299,7 @@ class AuditAction(str, Enum):
     card_added      = "card_added"
     card_deleted    = "card_deleted"
     login           = "login"
+    login_failed    = "login_failed"
     password_change = "password_change"
     profile_update  = "profile_update"
 

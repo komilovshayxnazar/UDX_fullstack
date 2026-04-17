@@ -131,8 +131,16 @@ app.include_router(products.router)
 app.include_router(orders.router)
 app.include_router(chat.router)
 app.include_router(weather.router)
-app.include_router(dev.router)
 app.include_router(contracts.router)
 app.include_router(payments.router)
 app.include_router(reviews_router)
 app.include_router(fraud_router)
+
+# Dev router — FAQAT development muhitida (production'da hech qachon!)
+_ENVIRONMENT = os.getenv("ENVIRONMENT", "development").lower()
+if _ENVIRONMENT != "production":
+    app.include_router(dev.router)
+    logging.warning(
+        "[SECURITY] Dev router YOQILGAN (ENVIRONMENT=%s). "
+        "Production'da ENVIRONMENT=production qo'ying!", _ENVIRONMENT
+    )
