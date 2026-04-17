@@ -37,9 +37,9 @@ BASE_URL = os.getenv("API_URL", "http://localhost:8000")
 def pytest_configure(config):
     """Check backend reachability once at collection time."""
     try:
-        httpx.get(f"{BASE_URL}/dev/health", timeout=3)
-    except httpx.ConnectError:
-        # Store a flag; we'll use it in the autouse fixture below
+        httpx.get(f"{BASE_URL}/health", timeout=5)
+    except (httpx.ConnectError, httpx.ReadTimeout, httpx.TimeoutException,
+            httpx.RemoteProtocolError, OSError):
         config._backend_unreachable = True
     else:
         config._backend_unreachable = False
