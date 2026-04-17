@@ -34,7 +34,7 @@ import com.udx.app.data.UserCreate
 import kotlinx.coroutines.launch
 import retrofit2.HttpException
 
-private enum class RegisterStep { INFO, OTP, PASSWORD }
+private enum class RegisterStep { INFO, OTP, OTP_VERIFY, PASSWORD }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -105,9 +105,10 @@ fun RegisterScreen(
 
                 Text(
                     text = when (step) {
-                        RegisterStep.INFO     -> stringResource(R.string.register_step_info)
-                        RegisterStep.OTP      -> stringResource(R.string.register_step_otp)
-                        RegisterStep.PASSWORD -> stringResource(R.string.register_step_password)
+                        RegisterStep.INFO       -> stringResource(R.string.register_step_info)
+                        RegisterStep.OTP        -> stringResource(R.string.register_step_otp)
+                        RegisterStep.OTP_VERIFY -> "Tasdiqlash kodini kiriting"
+                        RegisterStep.PASSWORD   -> stringResource(R.string.register_step_password)
                     },
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -123,11 +124,19 @@ fun RegisterScreen(
                     horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    StepDot(active = step == RegisterStep.INFO || step == RegisterStep.OTP || step == RegisterStep.PASSWORD)
-                    Divider(Modifier.width(32.dp).padding(horizontal = 4.dp), color = if (step == RegisterStep.OTP || step == RegisterStep.PASSWORD) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant)
-                    StepDot(active = step == RegisterStep.OTP || step == RegisterStep.PASSWORD)
-                    Divider(Modifier.width(32.dp).padding(horizontal = 4.dp), color = if (step == RegisterStep.PASSWORD) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant)
-                    StepDot(active = step == RegisterStep.PASSWORD)
+                    val stepIndex = when (step) {
+                        RegisterStep.INFO       -> 0
+                        RegisterStep.OTP        -> 1
+                        RegisterStep.OTP_VERIFY -> 2
+                        RegisterStep.PASSWORD   -> 3
+                    }
+                    StepDot(active = stepIndex >= 0)
+                    Divider(Modifier.width(24.dp).padding(horizontal = 4.dp), color = if (stepIndex >= 1) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant)
+                    StepDot(active = stepIndex >= 1)
+                    Divider(Modifier.width(24.dp).padding(horizontal = 4.dp), color = if (stepIndex >= 2) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant)
+                    StepDot(active = stepIndex >= 2)
+                    Divider(Modifier.width(24.dp).padding(horizontal = 4.dp), color = if (stepIndex >= 3) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant)
+                    StepDot(active = stepIndex >= 3)
                 }
 
                 AnimatedContent(
@@ -270,15 +279,14 @@ fun RegisterScreen(
 
                             RegisterStep.OTP -> {
                                 Text(
-                                    text = "Telegram orqali tasdiqlash",
+                                    text = "Telegram ilovasiga o'tib, botga yuborilgan habarni qabul qiling",
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     textAlign = TextAlign.Center
                                 )
 
-                                Spacer(modifier = Modifier.height(16.dp))
+                                Spacer(modifier = Modifier.height(24.dp))
 
-                                // Step 1: open Telegram deep link
                                 Button(
                                     onClick = {
                                         val uri = Uri.parse("tg://resolve?domain=$otpBotUsername&start=$otpToken")
@@ -297,17 +305,41 @@ fun RegisterScreen(
                                     Text("Telegramga o'tish", fontSize = MaterialTheme.typography.titleMedium.fontSize)
                                 }
 
-                                if (deepLinkOpened) {
-                                    Spacer(modifier = Modifier.height(8.dp))
-                                    Text(
-                                        text = "Telegramdan kelgan 6 xonali kodni kiriting",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        textAlign = TextAlign.Center
-                                    )
+                                Spacer(modifier = Modifier.height(16.dp))
+
+                                Button(
+                                    onClick = {
+                                        errorMessage = null
+                                        step = RegisterStep.OTP_VERIFY
+                                    },
+                                    modifier = Modifier.fillMaxWidth().height(50.dp),
+                                    enabled = deepLinkOpened,
+                                    shape = RoundedCornerShape(12.dp)
+                                ) {
+                                    Text(stringResource(R.string.continue_btn), fontSize = MaterialTheme.typography.titleMedium.fontSize)
                                 }
 
-                                Spacer(modifier = Modifier.height(16.dp))
+                                Spacer(modifier = Modifier.height(12.dp))
+
+                                TextButton(onClick = {
+                                    step = RegisterStep.INFO
+                                    otpToken = ""
+                                    deepLinkOpened = false
+                                    errorMessage = null
+                                }) {
+                                    Text(stringResource(R.string.back))
+                                }
+                            }
+
+                            RegisterStep.OTP_VERIFY -> {
+                                Text(
+                                    text = "Telegramdan kelgan 6 xonali kodni kiriting",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    textAlign = TextAlign.Center
+                                )
+
+                                Spacer(modifier = Modifier.height(24.dp))
 
                                 OutlinedTextField(
                                     value = otpCode,
@@ -328,7 +360,7 @@ fun RegisterScreen(
                                     )
                                 }
 
-                                Spacer(modifier = Modifier.height(16.dp))
+                                Spacer(modifier = Modifier.height(24.dp))
 
                                 Button(
                                     onClick = {
@@ -370,10 +402,8 @@ fun RegisterScreen(
                                 Spacer(modifier = Modifier.height(12.dp))
 
                                 TextButton(onClick = {
-                                    step = RegisterStep.INFO
+                                    step = RegisterStep.OTP
                                     otpCode = ""
-                                    otpToken = ""
-                                    deepLinkOpened = false
                                     errorMessage = null
                                 }) {
                                     Text(stringResource(R.string.back))
@@ -515,7 +545,7 @@ fun RegisterScreen(
                                 Spacer(modifier = Modifier.height(12.dp))
 
                                 TextButton(onClick = {
-                                    step = RegisterStep.OTP
+                                    step = RegisterStep.OTP_VERIFY
                                     errorMessage = null
                                 }) {
                                     Text(stringResource(R.string.back))

@@ -220,7 +220,7 @@ async def google_callback(code: str, state: str = None):
     google_id = user_info.get("id")
     name = user_info.get("name")
     
-    user = await models.User.find_one(models.User.phone == f"google_{google_id}")
+    user = await models.User.find_one(models.User.phone_hash == hmac_hash(f"google_{google_id}"))
     
     if state == "register":
         if user:
