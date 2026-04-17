@@ -13,7 +13,12 @@ import schemas
 from core.security import verify_password, create_access_token, ACCESS_TOKEN_EXPIRE_MINUTES
 from core.encryption import encrypt, decrypt, hmac_hash
 from core.errors import E
-from telegram_bot import send_otp, get_chat_id, send_otp_to_chat, get_chat_id_by_token, set_token_callback
+from telegram_bot import (
+    send_otp, get_chat_id,
+    send_otp_to_chat, send_otp_by_phone_hash,
+    get_chat_id_by_token, get_chat_id_by_phone_hash,
+    set_token_callback,
+)
 
 # In-memory OTP store: { telegram_username -> (code, expires_at, attempts) }
 _otp_store: dict[str, tuple[str, float, int]] = {}
@@ -89,12 +94,25 @@ async def init_phone_otp(body: schemas.PhoneOtpInit):
     otp_code = str(random.randint(100000, 999999))
     expires_at = time.time() + OTP_TTL_SECONDS
 
-    _pending_tokens[token] = (phone_hash, otp_code, expires_at)
+    # Agar foydalanuvchi botda telefon ulashgan bo'lsa — darhol OTP yuborish
+    if get_chat_id_by_phone_hash(phone_hash):
+        sent = await send_otp_by_phone_hash(phone_hash, otp_code)
+        if sent:
+            _phone_otp_store[phone_hash] = (otp_code, expires_at, 0)
+            return {
+                "token": None,
+                "bot_username": BOT_USERNAME,
+                "expires_in": OTP_TTL_SECONDS,
+                "direct": True,   # ilova deeplink ochmasin, kod yuborildi
+            }
 
+    # Aks holda — token orqali deeplink flow
+    _pending_tokens[token] = (phone_hash, otp_code, expires_at)
     return {
         "token": token,
         "bot_username": BOT_USERNAME,
-        "expires_in": OTP_TTL_SECONDS
+        "expires_in": OTP_TTL_SECONDS,
+        "direct": False,
     }
 
 
