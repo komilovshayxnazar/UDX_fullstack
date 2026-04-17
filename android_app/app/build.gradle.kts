@@ -11,8 +11,8 @@ android {
         applicationId = "com.udx.app"
         minSdk = 24
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = (System.getenv("VERSION_CODE") ?: "1").toInt()
+        versionName = System.getenv("VERSION_NAME") ?: "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -20,13 +20,24 @@ android {
         }
     }
 
+    signingConfigs {
+        create("release") {
+            storeFile     = file(System.getenv("KEYSTORE_PATH") ?: "keystore/udx-release.jks")
+            storePassword = System.getenv("KEYSTORE_PASSWORD") ?: ""
+            keyAlias      = System.getenv("KEY_ALIAS") ?: ""
+            keyPassword   = System.getenv("KEY_PASSWORD") ?: ""
+        }
+    }
+
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            signingConfig = signingConfigs.getByName("release")
         }
     }
     compileOptions {

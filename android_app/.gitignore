@@ -1,3 +1,8 @@
+# Keystore — hech qachon repoga tushmaydi
+app/keystore/
+*.jks
+*.keystore
+
 *.iml
 .gradle
 /local.properties
