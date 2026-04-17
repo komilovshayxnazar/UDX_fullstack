@@ -23,6 +23,7 @@ android {
 
     signingConfigs {
         create("release") {
+            // KEYSTORE_PATH — app/ moduliga nisbatan (masalan: "keystore/udx-release.jks")
             storeFile     = file(System.getenv("KEYSTORE_PATH") ?: "keystore/udx-release.jks")
             storePassword = System.getenv("KEYSTORE_PASSWORD") ?: ""
             keyAlias      = System.getenv("KEY_ALIAS") ?: ""

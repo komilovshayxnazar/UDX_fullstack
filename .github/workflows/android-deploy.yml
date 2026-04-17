@@ -46,7 +46,8 @@ jobs:
       - name: Release AAB build
         working-directory: android_app
         env:
-          KEYSTORE_PATH:     app/keystore/udx-release.jks
+          # Gradle file() app/ modulidan hisoblaydi → "keystore/..." to'g'ri
+          KEYSTORE_PATH:     keystore/udx-release.jks
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS:         ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD:      ${{ secrets.KEY_PASSWORD }}
