@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1034420828553",
+    "project_id": "udx-marketplace",
+    "storage_bucket": "udx-marketplace.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1034420828553:android:2faacf085c45c46220c958",
+        "android_client_info": {
+          "package_name": "com.udx.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA7gszKoh2_93MTUqgwQIBhckR7ABJ1P0A"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
