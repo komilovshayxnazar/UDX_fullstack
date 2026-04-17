@@ -45,13 +45,16 @@ def pytest_configure(config):
         config._backend_unreachable = False
 
 
-@pytest.fixture(autouse=True, scope="session")
+@pytest.fixture(autouse=True, scope="function")
 def require_backend(request):
+    # Unit testlar (pytest.mark.unit) server talab qilmaydi — skip qilinmaydi
+    if request.node.get_closest_marker("unit"):
+        return
     if getattr(request.config, "_backend_unreachable", False):
         pytest.skip(
             f"Backend not reachable at {BASE_URL}. "
             "Start the server first:\n"
-            "  python -m uvicorn backend.main:app --reload --port 8000"
+            "  cd android_app/backend && uvicorn main:app --reload --port 8000"
         )
 
 # ---------------------------------------------------------------------------
