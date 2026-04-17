@@ -30,6 +30,7 @@ from core.rate_limiter import limiter
 # Lifespan
 from contextlib import asynccontextmanager
 from telegram_bot import start_bot, stop_bot
+from core.cache import init_cache, close_cache
 
 
 @asynccontextmanager
@@ -41,10 +42,12 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logging.critical(f"[INIT] Database connection failed: {e}")
         raise RuntimeError(f"Cannot start without database: {e}")
+    await init_cache()
     await start_bot()
     yield
     logging.info("[INIT] Shutting down...")
     await stop_bot()
+    await close_cache()
 
 
 app = FastAPI(title="UDX API", lifespan=lifespan)

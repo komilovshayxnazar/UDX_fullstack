@@ -13,5 +13,6 @@ python-telegram-bot>=20.0
 slowapi>=0.1.9
 scikit-learn>=1.3.0
 numpy>=1.26.0
+redis>=5.0.0
 # Neo4j driver (ixtiyoriy — agar Neo4j server ishlatilsa)
 # neo4j>=5.0.0

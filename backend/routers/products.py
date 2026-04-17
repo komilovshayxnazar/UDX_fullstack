@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi.encoders import jsonable_encoder
 from typing import List, Optional
 import uuid
 import os
@@ -6,6 +7,10 @@ import os
 import models
 import schemas
 from core.dependencies import get_current_user
+from core.cache import (
+    cache_get, cache_set, cache_delete, cache_delete_pattern,
+    CATEGORIES_TTL, PRODUCTS_TTL,
+)
 from beanie import PydanticObjectId
 from beanie.operators import In
 
@@ -100,6 +105,11 @@ async def read_products(
     q: Optional[str] = None
 ):
     limit = min(limit, 100)
+    cache_key = f"products:{skip}:{limit}:{is_b2b}:{category_id}:{q or ''}"
+    cached = await cache_get(cache_key)
+    if cached is not None:
+        return cached
+
     query = models.Product.find_all()
     if is_b2b is not None:
         query = query.find(models.Product.is_b2b == is_b2b)
@@ -110,18 +120,21 @@ async def read_products(
         regex = re.compile(q.strip(), re.IGNORECASE)
         query = query.find({"name": {"$regex": regex.pattern, "$options": "i"}})
     products = await query.skip(skip).limit(limit).to_list()
-    return await _enrich_with_sellers(products)
+    result = await _enrich_with_sellers(products)
+    await cache_set(cache_key, jsonable_encoder(result), ttl=PRODUCTS_TTL)
+    return result
 
 @router.post("/products/", response_model=schemas.Product)
 async def create_product(product: schemas.ProductCreate, current_user: models.User = Depends(get_current_user)):
     if current_user.role != models.UserRole.seller:
          raise HTTPException(status_code=403, detail="Only sellers can create products")
-         
+
     new_product = models.Product(
         seller_id=str(current_user.id),
         **product.model_dump()
     )
     await new_product.insert()
+    await cache_delete_pattern("products:*")
     return new_product
 
 @router.get("/products/{product_id}", response_model=schemas.Product)
@@ -177,10 +190,16 @@ async def get_recommendations(limit: int = 10, current_user: models.User = Depen
 
 @router.get("/categories/", response_model=List[schemas.Category])
 async def get_categories():
+    cached = await cache_get("categories")
+    if cached is not None:
+        return cached
+
     categories = await models.Category.find_all().to_list()
     if not categories:
         from mock_data.seed import CATEGORIES
         for cat_data in CATEGORIES:
             await models.Category(**cat_data).insert()
         categories = await models.Category.find_all().to_list()
+
+    await cache_set("categories", jsonable_encoder(categories), ttl=CATEGORIES_TTL)
     return categories

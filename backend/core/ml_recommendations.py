@@ -24,6 +24,7 @@ from sklearn.decomposition import TruncatedSVD
 
 import models
 from core import neo4j_db
+from core.cache import cache_get, cache_set, RECS_TTL
 
 logger = logging.getLogger(__name__)
 
@@ -35,12 +36,20 @@ async def recommend_for_user(user_id: str, limit: int = 10) -> List[str]:
     """
     Async wrapper: tries SVD first, then Neo4j CF, returns product id list.
     Empty list means "no personalised recs" — caller should use its own fallback.
+    Results are cached in Redis for RECS_TTL seconds (default 1 hour).
     """
+    cache_key = f"recs:{user_id}:{limit}"
+    cached = await cache_get(cache_key)
+    if cached is not None:
+        logger.info("[ML] Cache hit for user %s", user_id)
+        return cached
+
     # ── 1. SVD ──────────────────────────────────────────────────────────────
     try:
         ids = await _svd_recommend(user_id, limit)
         if ids:
             logger.info("[ML] SVD returned %d recs for user %s", len(ids), user_id)
+            await cache_set(cache_key, ids, ttl=RECS_TTL)
             return ids
     except Exception as e:
         logger.warning("[ML] SVD failed: %s", e)
@@ -51,6 +60,7 @@ async def recommend_for_user(user_id: str, limit: int = 10) -> List[str]:
             ids = _neo4j_cf(user_id, limit)
             if ids:
                 logger.info("[ML] Neo4j CF returned %d recs for user %s", len(ids), user_id)
+                await cache_set(cache_key, ids, ttl=RECS_TTL)
                 return ids
         except Exception as e:
             logger.warning("[ML] Neo4j CF failed: %s", e)

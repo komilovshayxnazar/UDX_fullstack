@@ -6,6 +6,8 @@ import schemas
 from core.dependencies import get_current_user
 from core.security import get_password_hash, verify_password
 from core.encryption import encrypt, decrypt, hmac_hash
+from core.cache import cache_get, cache_set, cache_delete, PROFILE_TTL
+from fastapi.encoders import jsonable_encoder
 from routers.auth import consume_verified_session, _normalize_phone
 from services import wallet_service, payment_service
 from services.audit_service import log as audit_log
@@ -58,6 +60,11 @@ async def read_users_me(current_user: models.User = Depends(get_current_user)):
 
 @router.get("/{user_id}/public", response_model=schemas.PublicUserProfile)
 async def get_public_profile(user_id: str):
+    cache_key = f"public_profile:{user_id}"
+    cached = await cache_get(cache_key)
+    if cached is not None:
+        return cached
+
     user = await models.User.get(user_id)
     if not user or not user.is_public:
         raise HTTPException(status_code=404, detail="User not found or profile is private")
@@ -94,7 +101,7 @@ async def get_public_profile(user_id: str):
         ) for r in reviews
     ]
 
-    return schemas.PublicUserProfile(
+    profile = schemas.PublicUserProfile(
         id=str(user.id), name=user.name, avatar=user.avatar,
         description=user.description, rating=user.rating,
         review_count=user.review_count, is_online=user.is_online,
@@ -104,6 +111,8 @@ async def get_public_profile(user_id: str):
         unsuccessful_orders=unsuccessful, in_progress_orders=in_progress,
         reviews=reviews_out
     )
+    await cache_set(cache_key, jsonable_encoder(profile), ttl=PROFILE_TTL)
+    return profile
 
 @router.put("/me", response_model=schemas.User)
 async def update_user_me(
@@ -120,6 +129,7 @@ async def update_user_me(
         current_user.is_public = user_update.is_public
         
     await current_user.save()
+    await cache_delete(f"public_profile:{str(current_user.id)}")
     return schemas.user_to_schema(current_user)
 
 @router.put("/me/password")
