@@ -12,10 +12,10 @@ export function BottomNavigation({ activeTab, onTabChange, mode }: BottomNavigat
 
   const allTabs = [
     { id: 'home' as const, icon: Home, label: t('buyer.home.title') },
-    { id: 'live' as const, icon: Video, label: 'Live' },
+    { id: 'live' as const, icon: Video, label: t('nav.live') },
     { id: 'add' as const, icon: PlusCircle, label: t('common.add') },
-    { id: 'contracts' as const, icon: FileText, label: 'Contracts' },
-    { id: 'trends' as const, icon: TrendingUp, label: 'Trends' },
+    { id: 'contracts' as const, icon: FileText, label: t('nav.contracts') },
+    { id: 'trends' as const, icon: TrendingUp, label: t('nav.trends') },
     { id: 'profile' as const, icon: User, label: t('settings.profile') },
   ];
 

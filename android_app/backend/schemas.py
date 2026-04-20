@@ -383,6 +383,16 @@ class FraudReportCreate(BaseModel):
         return v
 
 
+# ── Click Payment Schemas ─────────────────────────────────────────────────────
+
+class ClickPaymentRequest(BaseModel):
+    amount: float
+
+class ClickPaymentCreate(BaseModel):
+    merchant_trans_id: str
+    pay_url: str
+
+
 class ContractCreate(BaseModel):
     buyer_id: str
     title: str

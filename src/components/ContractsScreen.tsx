@@ -98,8 +98,8 @@ export function ContractsScreen({ onBack, onAddContract, onViewContract }: Contr
               <ArrowLeft className="h-5 w-5" />
             </button>
             <div>
-              <h2 className="text-white">Contracts</h2>
-              <p className="text-white/80">{filteredContracts.length} contracts</p>
+              <h2 className="text-white">{t('contracts.title')}</h2>
+              <p className="text-white/80">{filteredContracts.length} {t('contracts.count')}</p>
             </div>
           </div>
           <Button 
@@ -108,7 +108,7 @@ export function ContractsScreen({ onBack, onAddContract, onViewContract }: Contr
             className="bg-background text-[#af47ff] hover:bg-background/90"
           >
             <Plus className="mr-2 h-4 w-4" />
-            Add Contract
+            {t('contracts.add')}
           </Button>
         </div>
 

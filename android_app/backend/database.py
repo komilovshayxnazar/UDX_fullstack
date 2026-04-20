@@ -46,6 +46,7 @@ async def init_db():
             models.AuditLog,
             models.Review,
             models.FraudReport,
+            models.ClickTransaction,
         ])
         
         return client, db

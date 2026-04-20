@@ -33,6 +33,7 @@ import database
 
 # Import all routers
 from routers import auth, users, products, orders, chat, weather, dev, contracts, payments
+from routers.click_payment import router as click_router
 from routers.reviews import router as reviews_router, fraud_router
 
 # Import services (registers event handlers as a side effect)
@@ -135,6 +136,7 @@ app.include_router(contracts.router)
 app.include_router(payments.router)
 app.include_router(reviews_router)
 app.include_router(fraud_router)
+app.include_router(click_router)
 
 # Dev router — FAQAT development muhitida (production'da hech qachon!)
 _ENVIRONMENT = os.getenv("ENVIRONMENT", "development").lower()

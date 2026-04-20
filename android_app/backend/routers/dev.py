@@ -13,6 +13,7 @@ import models
 from core.encryption import hmac_hash
 from mock_data.seed import run_seed
 import telegram_bot
+from routers.auth import _session_set, _normalize_phone
 
 router = APIRouter(prefix="/dev", tags=["dev"])
 
@@ -29,6 +30,14 @@ async def telegram_status(username: str = ""):
         "username_registered": chat_id is not None,
         "chat_id":             chat_id,
     }
+
+
+@router.post("/verify-phone")
+async def dev_verify_phone(phone: str):
+    """Test uchun — OTP tasdiqlamasdan telefon raqamni verified qilib belgilaydi."""
+    ph = hmac_hash(_normalize_phone(phone))
+    await _session_set(ph)
+    return {"verified": True, "phone": phone}
 
 
 @router.post("/seed")

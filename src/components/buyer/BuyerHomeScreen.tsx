@@ -124,7 +124,7 @@ export function BuyerHomeScreen({
         <div className="mb-4 flex items-center justify-between">
           <div>
             <h2 className="text-white">UDX</h2>
-            <p className="text-white/80">Agricultural Marketplace</p>
+            <p className="text-white/80">{t('buyer.home.subtitle')}</p>
           </div>
           <div className="flex items-center gap-2">
             <button onClick={onMessagesClick} className="relative rounded-full p-1 hover:bg-background/10">
@@ -151,7 +151,7 @@ export function BuyerHomeScreen({
                 className="bg-background/20 text-white hover:bg-background/30 h-8 px-2 text-xs"
               >
                 <Store className="mr-1 h-4 w-4" />
-                Seller
+                {t('role.seller')}
               </Button>
             )}
           </div>
@@ -220,7 +220,7 @@ export function BuyerHomeScreen({
         {/* Online Farmers */}
         {onlineFarmers.length > 0 && (
           <div className="mb-6">
-            <h3 className="mb-3">🟢 Online Farmers</h3>
+            <h3 className="mb-3">🟢 {t('buyer.home.onlineFarmers')}</h3>
             <div className="space-y-3">
               {onlineFarmers.map((farmer) => {
                 const isSelected = selectedFarmers.has(farmer.id);
@@ -244,7 +244,7 @@ export function BuyerHomeScreen({
                             <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
                             <span>{farmer.rating}</span>
                             <span>•</span>
-                            <span>{farmer.distance} km away</span>
+                            <span>{farmer.distance} {t('buyer.home.kmAway')}</span>
                           </div>
                         </div>
                         <Button
@@ -253,7 +253,7 @@ export function BuyerHomeScreen({
                           disabled={isSelected}
                           className={isSelected ? 'bg-muted text-foreground' : 'bg-[#af47ff] hover:bg-[#9935e6]'}
                         >
-                          {isSelected ? 'Selected' : 'Select'}
+                          {isSelected ? t('common.selected') : t('common.select')}
                         </Button>
                       </div>
 

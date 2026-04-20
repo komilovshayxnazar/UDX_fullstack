@@ -56,11 +56,14 @@ def record_interaction(user_id: str, product_id: str, interaction_type: str = "v
     ON MATCH  SET r.count = r.count + 1, r.last_seen = timestamp()
     RETURN r.count AS count
     """
-    execute_query(query, {
-        "user_id": user_id,
-        "product_id": product_id,
-        "type": interaction_type,
-    })
+    try:
+        execute_query(query, {
+            "user_id": user_id,
+            "product_id": product_id,
+            "type": interaction_type,
+        })
+    except Exception as e:
+        logger.warning("[Neo4j] record_interaction failed: %s", e)
 
 
 def is_available() -> bool:

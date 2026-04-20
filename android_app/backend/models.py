@@ -293,6 +293,33 @@ class IdempotencyKey(Document):
         ]
 
 
+class ClickTxnStatus(str, Enum):
+    pending   = "pending"
+    prepared  = "prepared"
+    completed = "completed"
+    cancelled = "cancelled"
+
+
+class ClickTransaction(Document):
+    """Click to'lov sessiyasi. prepare/complete webhook'lar shu yozuvni yangilaydi."""
+    user_id: str
+    amount: float
+    status: ClickTxnStatus = ClickTxnStatus.pending
+    merchant_trans_id: str          # bizning UUID — Click'ga beriladi
+    click_trans_id: Optional[str] = None
+    click_paydoc_id: Optional[str] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+    class Settings:
+        name = "click_transactions"
+        indexes = [
+            IndexModel([("merchant_trans_id", pymongo.ASCENDING)], unique=True),
+            IndexModel([("user_id", pymongo.ASCENDING)]),
+            IndexModel([("created_at", pymongo.DESCENDING)]),
+        ]
+
+
 class AuditAction(str, Enum):
     deposit         = "deposit"
     withdraw        = "withdraw"

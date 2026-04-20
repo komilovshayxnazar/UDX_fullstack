@@ -93,6 +93,8 @@ const manualTranslations: Record<string, Record<string, string>> = {
     'common.no': 'No',
     'common.confirm': 'Confirm',
     'common.loading': 'Loading...',
+    'common.select': 'Select',
+    'common.selected': 'Selected',
 
     // Buyer Home
     'buyer.home.title': 'Marketplace',
@@ -100,8 +102,11 @@ const manualTranslations: Record<string, Record<string, string>> = {
     'buyer.home.temp': 'Temperature',
     'buyer.home.humidity': 'Humidity',
     'buyer.home.wind': 'Wind',
+    'buyer.home.subtitle': 'Agricultural Marketplace',
     'buyer.home.topRated': 'Top Rated Farmers',
+    'buyer.home.onlineFarmers': 'Online Farmers',
     'buyer.home.featured': 'Featured Products',
+    'buyer.home.kmAway': 'km away',
     'buyer.home.allProducts': 'All Products',
     'buyer.home.sortBy': 'Sort by',
     'buyer.home.newest': 'Newest',
@@ -162,6 +167,11 @@ const manualTranslations: Record<string, Record<string, string>> = {
     'trends.weekly': '1W',
     'trends.monthly': '1M',
     'trends.yearly': '1Y',
+
+    // Navigation
+    'nav.live': 'Live',
+    'nav.contracts': 'Contracts',
+    'nav.trends': 'Trends',
 
     // Communication
     'chat.selectType': 'Select Communication Type',
@@ -254,6 +264,8 @@ const manualTranslations: Record<string, Record<string, string>> = {
     // Contracts
     'contracts.title': 'Contracts',
     'contracts.create': 'Create Contract',
+    'contracts.add': 'Add Contract',
+    'contracts.count': 'contracts',
     'contracts.pending': 'Pending',
     'contracts.active': 'Active',
     'contracts.completed': 'Completed',
@@ -370,6 +382,8 @@ const manualTranslations: Record<string, Record<string, string>> = {
     'common.no': 'Нет',
     'common.confirm': 'Подтвердить',
     'common.loading': 'Загрузка...',
+    'common.select': 'Выбрать',
+    'common.selected': 'Выбрано',
 
     // Buyer Home
     'buyer.home.title': 'Маркетплейс',
@@ -377,8 +391,11 @@ const manualTranslations: Record<string, Record<string, string>> = {
     'buyer.home.temp': 'Температура',
     'buyer.home.humidity': 'Влажность',
     'buyer.home.wind': 'Ветер',
+    'buyer.home.subtitle': 'Сельскохозяйственный маркетплейс',
     'buyer.home.topRated': 'Лучшие фермеры',
+    'buyer.home.onlineFarmers': 'Онлайн фермеры',
     'buyer.home.featured': 'Избранные товары',
+    'buyer.home.kmAway': 'км от вас',
     'buyer.home.allProducts': 'Все товары',
     'buyer.home.sortBy': 'Сортировать',
     'buyer.home.newest': 'Новые',
@@ -439,6 +456,11 @@ const manualTranslations: Record<string, Record<string, string>> = {
     'trends.weekly': '1Н',
     'trends.monthly': '1М',
     'trends.yearly': '1Г',
+
+    // Navigation
+    'nav.live': 'Прямой эфир',
+    'nav.contracts': 'Контракты',
+    'nav.trends': 'Тренды',
 
     // Communication
     'chat.selectType': 'Выберите тип связи',
@@ -531,6 +553,8 @@ const manualTranslations: Record<string, Record<string, string>> = {
     // Contracts
     'contracts.title': 'Контракты',
     'contracts.create': 'Создать контракт',
+    'contracts.add': 'Добавить контракт',
+    'contracts.count': 'контрактов',
     'contracts.pending': 'Ожидание',
     'contracts.active': 'Активные',
     'contracts.completed': 'Завершенные',
@@ -609,6 +633,250 @@ const manualTranslations: Record<string, Record<string, string>> = {
   },
 
   uz: {
+    // Welcome & Onboarding
+    'welcome.title': 'UDX ga xush kelibsiz',
+    'welcome.subtitle': 'Qishloq xo\'jaligi xaridor va sotuvchilarini bog\'laymiz',
+    'welcome.getStarted': 'Boshlash',
+    'role.title': 'Rolingizni tanlang',
+    'role.buyer': 'Xaridor',
+    'role.seller': 'Sotuvchi',
+    'role.buyerDesc': 'Qishloq xo\'jaligi mahsulotlarini ko\'ring va xarid qiling',
+    'role.sellerDesc': 'Mahsulotlaringizni joylashtiring va soting',
+    'auth.title': 'Telefon tasdiqlash',
+    'auth.enterPhone': 'Telefon raqamingizni kiriting',
+    'auth.sendCode': 'Kod yuborish',
+    'auth.enterCode': 'Tasdiqlash kodini kiriting',
+    'auth.verify': 'Tasdiqlash',
+    'profile.buyerTitle': 'Xaridor profilingizni to\'ldiring',
+    'profile.sellerTitle': 'Sotuvchi profilingizni to\'ldiring',
+    'profile.fullName': 'To\'liq ism',
+    'profile.businessName': 'Biznes nomi',
+    'profile.location': 'Joylashuv',
+    'profile.complete': 'Profilni yakunlash',
+    'completion.welcome': 'UDX ga xush kelibsiz!',
+    'completion.ready': 'Hisobingiz tayyor',
+
+    // Common
+    'common.back': 'Orqaga',
+    'common.search': 'Mahsulot qidirish...',
+    'common.filter': 'Filtr',
+    'common.close': 'Yopish',
+    'common.save': 'Saqlash',
+    'common.cancel': 'Bekor qilish',
+    'common.delete': 'O\'chirish',
+    'common.edit': 'Tahrirlash',
+    'common.add': 'Qo\'shish',
+    'common.remove': 'Olib tashlash',
+    'common.yes': 'Ha',
+    'common.no': 'Yo\'q',
+    'common.confirm': 'Tasdiqlash',
+    'common.loading': 'Yuklanmoqda...',
+    'common.select': 'Tanlash',
+    'common.selected': 'Tanlangan',
+
+    // Buyer Home
+    'buyer.home.title': 'Bozor',
+    'buyer.home.subtitle': 'Qishloq xo\'jaligi bozori',
+    'buyer.home.weather': 'Ob-havo',
+    'buyer.home.temp': 'Harorat',
+    'buyer.home.humidity': 'Namlik',
+    'buyer.home.wind': 'Shamol',
+    'buyer.home.topRated': 'Eng yaxshi fermerlar',
+    'buyer.home.onlineFarmers': 'Onlayn fermerlar',
+    'buyer.home.featured': 'Tavsiya etilgan mahsulotlar',
+    'buyer.home.allProducts': 'Barcha mahsulotlar',
+    'buyer.home.sortBy': 'Saralash',
+    'buyer.home.newest': 'Yangi',
+    'buyer.home.priceAsc': 'Narx: arzondan qimmatlga',
+    'buyer.home.priceDesc': 'Narx: qimmatdan arzonga',
+    'buyer.home.rating': 'Eng yuqori reyting',
+    'buyer.home.kmAway': 'km uzoqlikda',
+
+    // Categories
+    'vegetables': 'Sabzavotlar',
+    'fruits': 'Mevalar',
+    'dairy': 'Sut mahsulotlari',
+    'meat': 'Go\'sht',
+    'greens': 'Ko\'katlar',
+    'grains': 'Don mahsulotlari',
+    'seeds': 'Urug\'lar',
+    'fertilizers': 'O\'g\'itlar',
+    'tools': 'Asboblar',
+    'machinery': 'Texnika',
+    'livestock': 'Chorvachilik',
+    'organic': 'Organik',
+    'b2b': 'B2B bozori',
+    'finance': 'Moliyaviy xizmatlar',
+    'insurance': 'Sug\'urta',
+    'consulting': 'Maslahat',
+    'transport': 'Transport',
+    'storage': 'Saqlash',
+
+    // Product
+    'product.addToCart': 'Savatga qo\'shish',
+    'product.quantity': 'Miqdor',
+    'product.price': 'Narx',
+    'product.rating': 'Reyting',
+    'product.reviews': 'Sharhlar',
+    'product.description': 'Tavsif',
+    'product.seller': 'Sotuvchi',
+    'product.chatWithSeller': 'Sotuvchi bilan chat',
+    'product.stock': 'Mavjud',
+    'product.outOfStock': 'Mavjud emas',
+
+    // Cart
+    'cart.title': 'Savat',
+    'cart.empty': 'Savat bo\'sh',
+    'cart.total': 'Jami',
+    'cart.checkout': 'Rasmiylashtirish',
+    'cart.orderHistory': 'Buyurtmalar tarixi',
+    'cart.items': 'ta mahsulot',
+
+    // Farmer Profile
+    'farmer.products': 'Mahsulotlar',
+    'farmer.rating': 'Reyting',
+    'farmer.location': 'Joylashuv',
+    'farmer.joined': 'Qo\'shilgan',
+    'farmer.verified': 'Tasdiqlangan sotuvchi',
+
+    // Market Trends
+    'trends.title': 'Bozor tendensiyalari',
+    'trends.daily': '1K',
+    'trends.weekly': '1H',
+    'trends.monthly': '1O',
+    'trends.yearly': '1Y',
+
+    // Navigation
+    'nav.live': 'Jonli',
+    'nav.contracts': 'Shartnomalar',
+    'nav.trends': 'Tendensiya',
+
+    // Communication
+    'chat.selectType': 'Aloqa turini tanlang',
+    'chat.text': 'Matnli chat',
+    'chat.voice': 'Ovozli qo\'ng\'iroq',
+    'chat.video': 'Video qo\'ng\'iroq',
+    'chat.endCall': 'Qo\'ng\'iroqni tugatish',
+    'chat.mute': 'Ovozni o\'chirish',
+    'chat.camera': 'Kamera',
+    'chat.translation': 'Tarjima',
+    'chat.original': 'Asl',
+    'chat.translated': 'Tarjima',
+
+    // Settings
+    'settings.title': 'Sozlamalar',
+    'settings.account': 'Hisob sozlamalari',
+    'settings.profile': 'Profilni tahrirlash',
+    'settings.language': 'Til',
+    'settings.notifications': 'Bildirishnomalar',
+    'settings.privacy': 'Maxfiylik',
+    'settings.terms': 'Foydalanish shartlari',
+    'settings.help': 'Yordam va qo\'llab-quvvatlash',
+    'settings.logout': 'Chiqish',
+    'settings.version': 'Versiya',
+    'settings.pushNotifications': 'Push bildirishnomalar',
+    'settings.emailNotifications': 'Email bildirishnomalar',
+    'settings.darkMode': 'Qorong\'u rejim',
+
+    // Language Selection
+    'language.title': 'Tilni tanlang',
+    'language.en': 'English',
+    'language.ru': 'Русский',
+    'language.tr': 'Türkçe',
+    'language.zh': '中文',
+    'language.es': 'Español',
+    'language.ar': 'العربية',
+    'language.fr': 'Français',
+    'language.de': 'Deutsch',
+    'language.pt': 'Português',
+    'language.hi': 'हिन्दी',
+    'language.uz': 'O\'zbek',
+    'language.kk': 'Қазақ',
+    'language.ky': 'Кыргыз',
+    'language.tg': 'Тоҷикӣ',
+    'language.fa': 'دری',
+
+    // Favorites
+    'favorites.title': 'Sevimlilar',
+    'favorites.empty': 'Hali sevimlilar yo\'q',
+    'favorites.remove': 'Sevimlilardan olib tashlash',
+
+    // Messages
+    'messages.title': 'Xabarlar',
+    'messages.empty': 'Hali xabarlar yo\'q',
+    'messages.online': 'Onlayn',
+    'messages.offline': 'Oflayn',
+
+    // Seller Dashboard
+    'seller.dashboard': 'Boshqaruv paneli',
+    'seller.totalRevenue': 'Umumiy daromad',
+    'seller.totalOrders': 'Jami buyurtmalar',
+    'seller.activeProducts': 'Faol mahsulotlar',
+    'seller.averageRating': 'O\'rtacha reyting',
+    'seller.revenueChart': 'Daromad grafigi',
+    'seller.topProducts': 'Top mahsulotlar',
+    'seller.recentOrders': 'So\'nggi buyurtmalar',
+    'seller.manageProducts': 'Mahsulotlarni boshqarish',
+    'seller.viewOrders': 'Buyurtmalarni ko\'rish',
+    'seller.analytics': 'Tahlil',
+
+    // Manage Products
+    'manageProducts.title': 'Mahsulotlarni boshqarish',
+    'manageProducts.addProduct': 'Mahsulot qo\'shish',
+    'manageProducts.productName': 'Mahsulot nomi',
+    'manageProducts.category': 'Kategoriya',
+    'manageProducts.price': 'Narx',
+    'manageProducts.stock': 'Qoldiq',
+    'manageProducts.status': 'Holat',
+    'manageProducts.active': 'Faol',
+    'manageProducts.inactive': 'Nofaol',
+
+    // Live Broadcast
+    'live.startBroadcast': 'Efirni boshlash',
+    'live.endBroadcast': 'Efirni tugatish',
+    'live.viewers': 'Tomoshabinlar',
+    'live.title': 'Jonli efir',
+    'live.description': 'Efir tavsifi',
+    'live.shareProduct': 'Mahsulotni ulashish',
+
+    // Contracts
+    'contracts.title': 'Shartnomalar',
+    'contracts.create': 'Shartnoma tuzish',
+    'contracts.add': 'Shartnoma qo\'shish',
+    'contracts.count': 'ta shartnoma',
+    'contracts.pending': 'Kutilmoqda',
+    'contracts.active': 'Faol',
+    'contracts.completed': 'Yakunlangan',
+    'contracts.sign': 'Shartnomani imzolash',
+    'contracts.verify': 'Shaxsni tasdiqlash',
+    'contracts.faceVerification': 'Yuz tanish',
+
+    // Search
+    'search.placeholder': '@ bilan qidirish',
+    'search.users': 'Foydalanuvchilar',
+    'search.products': 'Mahsulotlar',
+    'search.recent': 'So\'nggi',
+    'search.noResults': 'Natija topilmadi',
+
+    // Role Switcher
+    'role.switch': 'Rolni almashtirish',
+    'role.buyerMode': 'Xaridor rejimi',
+    'role.sellerMode': 'Sotuvchi rejimi',
+
+    // Orders
+    'orders.title': 'Buyurtmalar',
+    'orders.new': 'Yangi buyurtma',
+    'orders.processing': 'Jarayonda',
+    'orders.shipped': 'Yuborilgan',
+    'orders.delivered': 'Yetkazilgan',
+
+    // Profile
+    'profile.edit': 'Profilni tahrirlash',
+    'profile.rating': 'Reyting',
+    'profile.reviews': 'Sharhlar',
+    'profile.sales': 'Sotuvlar',
+    'profile.joined': 'A\'zo bo\'lgan',
+
     // API Errors
     'errors.otp_not_found': 'OTP kod topilmadi. Qaytadan so\'rang.',
     'errors.otp_expired': 'OTP kod muddati o\'tdi. Qaytadan so\'rang.',

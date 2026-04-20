@@ -203,10 +203,20 @@ def _neo4j_cf(user_id: str, limit: int) -> List[str]:
     ids = [r["id"] for r in rows]
 
     if len(ids) < limit:
-        popular = _neo4j_popular(limit - len(ids))
+        # Foydalanuvchi allaqachon ko'rgan mahsulotlarni popular listdan chiqaramiz
+        seen_by_user = {
+            r["id"]
+            for r in neo4j_db.execute_query(
+                "MATCH (:User {id: $uid})-[:INTERACTED]->(p:Product) RETURN p.id AS id",
+                {"uid": user_id},
+            )
+        }
+        popular = _neo4j_popular(limit)
         for pid in popular:
-            if pid not in ids:
+            if pid not in ids and pid not in seen_by_user:
                 ids.append(pid)
+            if len(ids) >= limit:
+                break
     return ids
 
 

@@ -67,6 +67,8 @@ def unique_phone() -> str:
 
 
 def register_user(client: httpx.Client, phone: str, password: str, role: str = "buyer", name: str = "Test User") -> dict:
+    # OTP bypass — faqat dev muhitida (ENVIRONMENT != production)
+    client.post("/dev/verify-phone", params={"phone": phone})
     resp = client.post("/users/", json={"phone": phone, "password": password, "role": role, "name": name})
     assert resp.status_code == 200, f"Registration failed: {resp.text}"
     return resp.json()

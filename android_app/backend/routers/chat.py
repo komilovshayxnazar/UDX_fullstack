@@ -188,7 +188,7 @@ async def websocket_chat_endpoint(
         await websocket.close(code=4001)
         return
 
-    user = await models.User.find_one(models.User.phone == phone)
+    user = await models.User.find_one(models.User.phone_hash == phone)
     if not user:
         await websocket.close(code=4001)
         return
