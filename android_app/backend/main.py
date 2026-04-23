@@ -78,7 +78,7 @@ if not os.getenv("R2_ACCOUNT_ID"):
     app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 # CORS
-_raw_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:5173,http://10.0.2.2:8000")
+_raw_origins = os.getenv("ALLOWED_ORIGINS", "https://udx-marketplace.store,http://localhost:5173,http://10.0.2.2:8000")
 ALLOWED_ORIGINS = [o.strip() for o in _raw_origins.split(",") if o.strip()]
 
 app.add_middleware(

@@ -9,7 +9,7 @@ import okhttp3.logging.HttpLoggingInterceptor
 import android.util.Log
 
 object NetworkModule {
-    private const val BASE_URL = "http://10.0.2.2:8000/"
+    private const val BASE_URL = "https://udx-marketplace.store/"
 
     private val authInterceptor = Interceptor { chain ->
         val token = TokenManager.getToken()
