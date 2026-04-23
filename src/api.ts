@@ -8,7 +8,7 @@ export interface User {
     avatar?: string;
 }
 
-const API_URL = 'http://localhost:8000';
+const API_URL = 'https://udx-marketplace.store';
 
 export const api = {
     // Auth

@@ -300,7 +300,7 @@ fun ProfileScreen(onLogout: () -> Unit) {
                 ) {
                     val avatarUrl = userData?.avatar
                     if (avatarUrl != null) {
-                        val fullUrl = if (avatarUrl.startsWith("http")) avatarUrl else "http://10.0.2.2:8000$avatarUrl"
+                        val fullUrl = if (avatarUrl.startsWith("http")) avatarUrl else "https://udx-marketplace.store$avatarUrl"
                         AsyncImage(
                             model = fullUrl,
                             contentDescription = "Profile photo",

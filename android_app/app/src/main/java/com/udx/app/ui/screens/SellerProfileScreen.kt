@@ -85,7 +85,7 @@ fun SellerProfileScreen(sellerId: String, onBack: () -> Unit) {
                                 Box(contentAlignment = Alignment.BottomEnd) {
                                     if (p.avatar != null) {
                                         val url = if (p.avatar.startsWith("http")) p.avatar
-                                                  else "http://10.0.2.2:8000${p.avatar}"
+                                                  else "https://udx-marketplace.store${p.avatar}"
                                         AsyncImage(
                                             model = url,
                                             contentDescription = null,

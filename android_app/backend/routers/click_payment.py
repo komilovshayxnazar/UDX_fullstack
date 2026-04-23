@@ -43,7 +43,7 @@ CLICK_SERVICE_ID      = os.getenv("CLICK_SERVICE_ID", "")
 CLICK_MERCHANT_ID     = os.getenv("CLICK_MERCHANT_ID", "")
 CLICK_SECRET_KEY      = os.getenv("CLICK_SECRET_KEY", "")
 CLICK_MERCHANT_USER_ID = os.getenv("CLICK_MERCHANT_USER_ID", "")
-CLICK_RETURN_URL      = os.getenv("CLICK_RETURN_URL", "http://localhost:5173/wallet")
+CLICK_RETURN_URL      = os.getenv("CLICK_RETURN_URL", "https://udx-marketplace.store/wallet")
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────

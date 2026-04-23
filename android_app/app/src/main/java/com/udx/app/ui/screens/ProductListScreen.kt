@@ -316,7 +316,7 @@ fun TrendCard(product: ProductRemote, onClick: () -> Unit = {}, onAddToCart: () 
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
     ) {
         Column {
-            val imageUrl = if (product.image.startsWith("http")) product.image else "http://10.0.2.2:8000${product.image}"
+            val imageUrl = if (product.image.startsWith("http")) product.image else "https://udx-marketplace.store${product.image}"
             Box {
                 AsyncImage(
                     model = imageUrl,
@@ -405,7 +405,7 @@ fun ProductCard(
                 modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp, top = 12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                val imageUrl = if (product.image.startsWith("http")) product.image else "http://10.0.2.2:8000${product.image}"
+                val imageUrl = if (product.image.startsWith("http")) product.image else "https://udx-marketplace.store${product.image}"
                 AsyncImage(
                     model = imageUrl,
                     contentDescription = product.name,

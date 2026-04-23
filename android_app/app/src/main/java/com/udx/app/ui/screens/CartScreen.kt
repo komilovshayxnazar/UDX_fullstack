@@ -252,7 +252,7 @@ fun CartItemRow(
             verticalAlignment = Alignment.CenterVertically
         ) {
             val product = item.product
-            val imageUrl = if (product.image.startsWith("http")) product.image else "http://10.0.2.2:8000${product.image}"
+            val imageUrl = if (product.image.startsWith("http")) product.image else "https://udx-marketplace.store${product.image}"
             
             AsyncImage(
                 model = imageUrl,
