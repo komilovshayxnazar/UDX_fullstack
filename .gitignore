@@ -1,0 +1,27 @@
+# Build output
+/bin/
+
+# Runtime data (WAL + rotated chunks)
+/data/
+
+# Go
+/vendor/
+*.exe
+*.test
+*.out
+coverage.txt
+coverage.html
+
+# Logs and scratch files
+*.log
+nohup.out
+
+# Editor / IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db

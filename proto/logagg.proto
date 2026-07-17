@@ -1,0 +1,34 @@
+syntax = "proto3";
+
+package logagg.v1;
+
+option go_package = "github.com/shayxnazar/logagg/gen/logagg/v1;logaggv1";
+
+// LogBatch is one compressed batch of newline-delimited LogLine JSON objects.
+// The agent streams these to the central server over a client-streaming RPC.
+message LogBatch {
+  // zstd-compressed payload, where the inner content is a JSON array of
+  // LogLine objects encoded with the standard field names (timestamp, level,
+  // service_name, trace_id, message).
+  bytes payload = 1;
+  // Number of LogLine objects in the decompressed payload. The receiver can
+  // use this as a hint for capacity hints; it is not authoritative.
+  uint32 count = 2;
+  // Hostname / agent identifier. Used for debugging and routing.
+  string source = 3;
+  // Unix-nanosecond timestamp when the batch was sealed on the agent.
+  int64 sealed_at_unix_ns = 4;
+}
+
+// Ack is sent from the server to the agent after the stream is closed by the
+// client (or torn down due to an error).
+message Ack {
+  uint64 received = 1;
+  string error = 2;
+}
+
+service IngestService {
+  // Stream accepts a client-side stream of LogBatch messages and returns a
+  // single Ack when the client half-closes the stream.
+  rpc Stream(stream LogBatch) returns (Ack);
+}
