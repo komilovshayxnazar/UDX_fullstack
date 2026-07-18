@@ -70,9 +70,14 @@ fun GoogleAuthWebViewScreen(
                             ): Boolean {
                                 val url = request?.url?.toString() ?: return false
 
-                                // Intercept the callback before it leaves the app
-                                if (url.contains("localhost") && url.contains("/auth/google/callback")) {
-                                    val uri = android.net.Uri.parse(url)
+                                // Intercept the OAuth callback before it leaves the app.
+                                // Match on the URL *path* — the callback host is set by
+                                // the backend (localhost in dev, udx-marketplace.store in
+                                // prod), and we don't want the WebView to keep navigating
+                                // once the code has arrived.
+                                val parsedUri = android.net.Uri.parse(url)
+                                if (parsedUri.path == "/auth/google/callback") {
+                                    val uri = parsedUri
                                     val code = uri.getQueryParameter("code")
                                     val state = uri.getQueryParameter("state")
 

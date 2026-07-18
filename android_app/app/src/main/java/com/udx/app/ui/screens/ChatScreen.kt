@@ -32,7 +32,13 @@ import kotlinx.coroutines.launch
 import okhttp3.*
 import java.util.concurrent.TimeUnit
 
-private const val WS_BASE = "ws://10.0.2.2:8000/ws/chat"
+// Derive the WebSocket base from the shared HTTP base URL so a build
+// pointed at staging or a real device does not silently keep talking
+// to the Android emulator's host loopback. Always upgrades to wss.
+private val WS_BASE: String =
+    com.udx.app.data.NetworkModule.BASE_URL
+        .replaceFirst(Regex("^https?://"), "wss://")
+        .trimEnd('/') + "/ws/chat"
 
 enum class ConnectionState { CONNECTING, CONNECTED, DISCONNECTED }
 

@@ -7,9 +7,13 @@ import okhttp3.OkHttpClient
 import okhttp3.Interceptor
 import okhttp3.logging.HttpLoggingInterceptor
 import android.util.Log
+import com.udx.app.BuildConfig
 
 object NetworkModule {
-    private const val BASE_URL = "https://udx-marketplace.store/"
+    // Publicly visible so other layers (WebSocket chat, image URL
+    // rewriting) can derive their own URLs from a single source of truth
+    // instead of re-hardcoding the host.
+    const val BASE_URL = "https://udx-marketplace.store/"
 
     private val authInterceptor = Interceptor { chain ->
         val token = TokenManager.getToken()
@@ -20,10 +24,13 @@ object NetworkModule {
         chain.proceed(requestBuilder.build())
     }
 
+    // Log full bodies only in debug builds so bearer tokens and payment
+    // payloads don't leak through logcat on release APKs.
     private val loggingInterceptor = HttpLoggingInterceptor { message ->
         Log.d("OkHttp", message)
     }.apply {
-        level = HttpLoggingInterceptor.Level.BODY
+        level = if (BuildConfig.DEBUG) HttpLoggingInterceptor.Level.BODY
+                else HttpLoggingInterceptor.Level.NONE
     }
 
     private val client = OkHttpClient.Builder()

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Android 12+ backup / device-transfer rules. We exclude the JWT
+    SharedPreferences so a compromised backup or restore chain cannot
+    lift the auth token.
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="sharedpref" path="auth_prefs.xml" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="sharedpref" path="auth_prefs.xml" />
+    </device-transfer>
+</data-extraction-rules>
