@@ -14,6 +14,18 @@ The stack:
 The old README instructions (SQLite, PowerShell paths under
 `C:\Users\user\Downloads\UDX (2) 2`) are stale. Follow the steps below.
 
+**TL;DR — the whole stack in one command:**
+
+```sh
+cp .env.docker.example .env.docker    # fill in the required secrets
+docker compose --env-file .env.docker up -d
+```
+
+That brings up MongoDB, Redis, Neo4j, the FastAPI backend, and an Nginx
+container serving the built frontend + reverse-proxying `/api/*` and
+`/ws/*` to the backend. See §6 for details. The manual-install path
+(§§1–4) is retained for local development without Docker.
+
 ---
 
 ## Prerequisites
@@ -23,7 +35,7 @@ The old README instructions (SQLite, PowerShell paths under
 - MongoDB 6+ running locally or a connection URI
 - Redis (optional in dev; **required in production** — session/OTP/CSRF state
   spans workers)
-- Docker (optional — quick Mongo + Redis)
+- Docker + Docker Compose v2 (recommended for the whole-stack path)
 
 ---
 
@@ -200,3 +212,87 @@ Backend integration tests hit the running server — start `main.py` first.
 | `Refusing to charge — mock gateway in production`     | Set `PAYMENT_GATEWAY_URL` or (staging) `PAYMENT_ALLOW_MOCK=1` |
 | Chat / OTP works for one user but breaks on scale-up  | Deploy Redis, set `REDIS_URL`                   |
 | Android chat won't connect                            | Ensure the server is reachable at `wss://<host>/ws/chat` and TLS cert is valid |
+| `MONGO_ROOT_PASSWORD is required` (compose)           | Copy `.env.docker.example` → `.env.docker` and fill in required values |
+
+---
+
+## 6. Docker Compose (whole stack)
+
+`docker-compose.yml` defines five services on one bridge network:
+
+| Service   | Image / build            | Exposed to host      |
+| --------- | ------------------------ | -------------------- |
+| `mongo`   | `mongo:7`                | (internal only)      |
+| `redis`   | `redis:7-alpine`         | (internal only)      |
+| `neo4j`   | `neo4j:5-community`      | (internal only)      |
+| `backend` | build from `backend/`    | (internal only, port 8000) |
+| `frontend`| build from repo root     | `${FRONTEND_HTTP_PORT:-8080}:80` |
+
+Only the frontend publishes a host port. The browser hits Nginx, which
+serves the built Vite bundle and reverse-proxies
+
+- `/api/*`      → `backend:8000/*` (path prefix stripped)
+- `/ws/*`       → `backend:8000/ws/*` (WebSocket upgrade preserved)
+- `/uploads/*`  → `backend:8000/uploads/*` (only used if R2 is not configured)
+
+so the browser only ever talks to one origin — same-origin API kills
+the whole CORS-in-prod class of bugs.
+
+### 6.1 Bootstrap
+
+```sh
+cp .env.docker.example .env.docker
+
+# Generate the three cryptographic keys (backend fails to start without them).
+python3 -c "import secrets; print('SECRET_KEY='     + secrets.token_hex(32))" >> .env.docker
+python3 -c "import secrets; print('ENCRYPTION_KEY=' + secrets.token_hex(32))" >> .env.docker
+python3 -c "import secrets; print('HMAC_KEY='       + secrets.token_hex(32))" >> .env.docker
+
+# Fill in MONGO_ROOT_PASSWORD, REDIS_PASSWORD, NEO4J_PASSWORD, and any
+# optional integrations (Click, Google OAuth, Telegram, R2, Sentry, …).
+$EDITOR .env.docker
+
+docker compose --env-file .env.docker up -d
+```
+
+### 6.2 Day-to-day
+
+```sh
+docker compose --env-file .env.docker logs -f backend
+docker compose --env-file .env.docker restart backend
+docker compose --env-file .env.docker down                 # keep volumes
+docker compose --env-file .env.docker down -v              # WIPE volumes
+```
+
+### 6.3 Building only what changed
+
+Compose rebuilds on `up --build` only if the corresponding build
+context changed:
+
+```sh
+docker compose --env-file .env.docker up -d --build backend
+docker compose --env-file .env.docker up -d --build frontend
+```
+
+### 6.4 Data volumes
+
+| Volume            | Purpose                                          |
+| ----------------- | ------------------------------------------------ |
+| `mongo-data`      | Mongo dbpath                                     |
+| `redis-data`      | Redis AOF/RDB                                    |
+| `neo4j-data`      | Graph DB                                         |
+| `neo4j-logs`      | Neo4j logs                                       |
+| `backend-uploads` | Local `/app/uploads` (only used without R2)      |
+| `backend-state`   | `/app/state` for the OTP/Telegram JSON fallback  |
+
+They persist across `docker compose down` unless you pass `-v`.
+
+### 6.5 What Docker Compose does NOT ship
+
+- The **Android app** — build it with `./gradlew :app:assembleRelease` per §3.
+- The **Telegram bot polling loop** — it runs inside the `backend`
+  container as a startup task; make sure `TELEGRAM_BOT_TOKEN` is set
+  before `up` if you need OTP delivery.
+- **TLS termination** — production should sit behind an ingress (nginx
+  on the host, Traefik, or a managed ALB) that handles HTTPS. The
+  container Nginx listens on plain HTTP by design.

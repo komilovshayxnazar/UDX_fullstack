@@ -1,0 +1,36 @@
+# Frontend build context — keep it lean.
+.git/
+.gitignore
+.vscode/
+.idea/
+node_modules/
+build/
+dist/
+.DS_Store
+Thumbs.db
+*.log
+nohup.out
+
+# Backend + Android are built by their own contexts / not by the frontend.
+backend/
+android_app/
+tests/
+
+# Local envs
+.env
+.env.local
+.env.development
+.env.production
+.env.staging
+
+# Docs + audit — not needed inside the image
+BUGS.md
+RUN_PROJECT.md
+NEO4J_SETUP.md
+README.md
+Icon/
+
+# Compose config itself
+docker-compose*.yml
+Dockerfile
+docker/

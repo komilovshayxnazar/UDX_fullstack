@@ -1,0 +1,25 @@
+.git/
+.gitignore
+.env
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+
+# Runtime state — must be provided by mounted volumes, never baked in.
+uploads/
+state/
+verified_sessions.json
+telegram_chat_ids.json
+telegram_phone_chat_ids.json
+benchmark_results.json
+*.db
+
+# Editor / OS junk
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.log

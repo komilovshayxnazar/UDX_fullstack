@@ -22,6 +22,9 @@ build
 .env.production
 .env.staging
 
+# Docker compose env — keep .env.docker.example tracked, ignore the real one
+.env.docker
+
 # ── Python backend ─────────────────────────────────────────────────────
 **/__pycache__/
 *.pyc
