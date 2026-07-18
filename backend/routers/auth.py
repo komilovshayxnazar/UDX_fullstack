@@ -16,6 +16,7 @@ from core.security import verify_password, create_access_token, ACCESS_TOKEN_EXP
 from core.encryption import encrypt, decrypt, hmac_hash
 from core.errors import E
 from core.cache import get_redis
+from core.memdb_store import is_memdb_enabled, memdb_get, memdb_set, memdb_delete
 from core.rate_limiter import limiter
 from services.audit_service import log as audit_log
 from telegram_bot import (
@@ -49,21 +50,42 @@ def _save_verified_store(store: dict[str, float]) -> None:
     with open(VERIFIED_SESSIONS_FILE, "w") as f:
         json.dump(store, f)
 
-# ── Redis OTP helpers ────────────────────────────────────────────────────────
+# ── OTP / session / token helpers ─────────────────────────────────────────────
+#
+# Storage tiers, tried in order: memdb (durable — WAL survives a restart) ->
+# Redis (fast, TTL-native, lost on restart if AOF/RDB is off) -> in-process
+# dict / file (single-instance last resort). memdb has no native TTL, so its
+# JSON payloads carry an "exp" unix timestamp checked on read, matching the
+# style already used by the in-process fallback below.
 
 async def _otp_set(ns: str, key: str, code: str, attempts: int = 0) -> None:
+    rkey = f"udx:otp:{ns}:{key}"
+    if is_memdb_enabled():
+        payload = json.dumps({"code": code, "attempts": attempts,
+                              "exp": time.time() + OTP_TTL_SECONDS}).encode()
+        if await memdb_set(rkey, payload):
+            return
     r = get_redis()
     if r:
-        await r.setex(f"udx:otp:{ns}:{key}", OTP_TTL_SECONDS,
+        await r.setex(rkey, OTP_TTL_SECONDS,
                       json.dumps({"code": code, "attempts": attempts}))
     else:
         store = _otp_store if ns == "tg" else _phone_otp_store
         store[key] = (code, time.time() + OTP_TTL_SECONDS, attempts)
 
 async def _otp_get(ns: str, key: str) -> dict | None:
+    rkey = f"udx:otp:{ns}:{key}"
+    if is_memdb_enabled():
+        raw = await memdb_get(rkey)
+        if raw is not None:
+            data = json.loads(raw)
+            if time.time() < data["exp"]:
+                return {"code": data["code"], "attempts": data["attempts"]}
+            await memdb_delete(rkey)
+            return None
     r = get_redis()
     if r:
-        raw = await r.get(f"udx:otp:{ns}:{key}")
+        raw = await r.get(rkey)
         return json.loads(raw) if raw else None
     store = _otp_store if ns == "tg" else _phone_otp_store
     entry = store.get(key)
@@ -72,8 +94,15 @@ async def _otp_get(ns: str, key: str) -> dict | None:
     return None
 
 async def _otp_incr(ns: str, key: str) -> None:
-    r = get_redis()
     rkey = f"udx:otp:{ns}:{key}"
+    if is_memdb_enabled():
+        raw = await memdb_get(rkey)
+        if raw is not None:
+            data = json.loads(raw)
+            data["attempts"] += 1
+            await memdb_set(rkey, json.dumps(data).encode())
+            return
+    r = get_redis()
     if r:
         raw = await r.get(rkey)
         if raw:
@@ -88,25 +117,42 @@ async def _otp_incr(ns: str, key: str) -> None:
             store[key] = (c, exp, att + 1)
 
 async def _otp_del(ns: str, key: str) -> None:
+    rkey = f"udx:otp:{ns}:{key}"
+    if is_memdb_enabled():
+        await memdb_delete(rkey)
     r = get_redis()
     if r:
-        await r.delete(f"udx:otp:{ns}:{key}")
-    else:
-        store = _otp_store if ns == "tg" else _phone_otp_store
-        store.pop(key, None)
+        await r.delete(rkey)
+    store = _otp_store if ns == "tg" else _phone_otp_store
+    store.pop(key, None)
 
 async def _token_set(token: str, phone_hash: str, otp_code: str) -> None:
+    rkey = f"udx:token:{token}"
+    if is_memdb_enabled():
+        payload = json.dumps({"phone_hash": phone_hash, "otp_code": otp_code,
+                              "exp": time.time() + OTP_TTL_SECONDS}).encode()
+        if await memdb_set(rkey, payload):
+            return
     r = get_redis()
     if r:
-        await r.setex(f"udx:token:{token}", OTP_TTL_SECONDS,
+        await r.setex(rkey, OTP_TTL_SECONDS,
                       json.dumps({"phone_hash": phone_hash, "otp_code": otp_code}))
     else:
         _pending_tokens[token] = (phone_hash, otp_code, time.time() + OTP_TTL_SECONDS)
 
 async def _token_get(token: str) -> tuple | None:
+    rkey = f"udx:token:{token}"
+    if is_memdb_enabled():
+        raw = await memdb_get(rkey)
+        if raw is not None:
+            d = json.loads(raw)
+            if time.time() < d["exp"]:
+                return d["phone_hash"], d["otp_code"], 0
+            await memdb_delete(rkey)
+            return None
     r = get_redis()
     if r:
-        raw = await r.get(f"udx:token:{token}")
+        raw = await r.get(rkey)
         if not raw:
             return None
         d = json.loads(raw)
@@ -115,18 +161,25 @@ async def _token_get(token: str) -> tuple | None:
     return entry if (entry and time.time() < entry[2]) else None
 
 async def _token_del(token: str) -> None:
+    rkey = f"udx:token:{token}"
+    if is_memdb_enabled():
+        await memdb_delete(rkey)
     r = get_redis()
     if r:
-        await r.delete(f"udx:token:{token}")
-    else:
-        _pending_tokens.pop(token, None)
+        await r.delete(rkey)
+    _pending_tokens.pop(token, None)
 
 # ── Session helpers ──────────────────────────────────────────────────────────
 
 async def _session_set(key: str) -> None:
+    rkey = f"udx:session:{key}"
+    if is_memdb_enabled():
+        payload = json.dumps({"exp": time.time() + VERIFIED_TTL_SECONDS}).encode()
+        if await memdb_set(rkey, payload):
+            return
     r = get_redis()
     if r:
-        await r.setex(f"udx:session:{key}", VERIFIED_TTL_SECONDS, "1")
+        await r.setex(rkey, VERIFIED_TTL_SECONDS, "1")
     else:
         store = _load_verified_store()
         store[key] = time.time() + VERIFIED_TTL_SECONDS
@@ -135,9 +188,15 @@ async def _session_set(key: str) -> None:
 async def consume_verified_session(username: str) -> bool:
     """True qaytaradi va sessiyani o'chiradi (bir martalik)."""
     username = username.lower().lstrip("@")
+    rkey = f"udx:session:{username}"
+    if is_memdb_enabled():
+        raw = await memdb_get(rkey)
+        if raw is not None:
+            await memdb_delete(rkey)
+            data = json.loads(raw)
+            return time.time() < data["exp"]
     r = get_redis()
     if r:
-        rkey = f"udx:session:{username}"
         val = await r.get(rkey)
         if val:
             await r.delete(rkey)

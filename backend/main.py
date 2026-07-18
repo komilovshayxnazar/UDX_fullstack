@@ -6,9 +6,13 @@ from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from dotenv import load_dotenv
 import os
+import uuid
 import logging
 
 logging.basicConfig(level=logging.INFO)
+
+from core.jsonlog import init_json_logging, trace_id_var
+init_json_logging()
 
 # Load environment variables first
 load_dotenv()
@@ -63,6 +67,7 @@ from core.rate_limiter import limiter
 from contextlib import asynccontextmanager
 from telegram_bot import start_bot, stop_bot
 from core.cache import init_cache, close_cache
+from core.memdb_store import init_memdb, close_memdb
 
 
 @asynccontextmanager
@@ -75,10 +80,12 @@ async def lifespan(app: FastAPI):
         logging.critical(f"[INIT] Database connection failed: {e}")
         raise RuntimeError(f"Cannot start without database: {e}")
     await init_cache()
+    await init_memdb()
     await start_bot()
     yield
     logging.info("[INIT] Shutting down...")
     await stop_bot()
+    await close_memdb()
     await close_cache()
 
 
@@ -115,6 +122,25 @@ app.add_middleware(
     allow_headers=["Authorization", "Content-Type", "X-Idempotency-Key"],
 )
 
+
+# ── Trace ID ─────────────────────────────────────────────────────────────────
+# Every request gets a trace_id (reused from an upstream X-Trace-Id header if
+# present, e.g. set by the gateway/nginx front-end) that tags every JSON-line
+# log record emitted while handling it — see core/jsonlog.py + the
+# Distributed Log Aggregator's `trace_id=` query filter.
+
+@app.middleware("http")
+async def trace_id_middleware(request: Request, call_next):
+    trace_id = request.headers.get("X-Trace-Id") or uuid.uuid4().hex
+    token = trace_id_var.set(trace_id)
+    try:
+        response = await call_next(request)
+    finally:
+        trace_id_var.reset(token)
+    response.headers["X-Trace-Id"] = trace_id
+    return response
+
+
 # ── Health check ─────────────────────────────────────────────────────────────
 
 @app.get("/health", tags=["system"])
@@ -122,6 +148,7 @@ async def health_check():
     """Servis holati: MongoDB, Redis, Storage."""
     from core.cache import get_redis
     from core.storage import _r2_configured
+    from core.memdb_store import is_memdb_enabled, memdb_ping
 
     result: dict = {"status": "ok", "services": {}}
 
@@ -144,6 +171,14 @@ async def health_check():
             result["status"] = "degraded"
     else:
         result["services"]["redis"] = "not configured"
+
+    # memdb (OTP/session store)
+    if is_memdb_enabled():
+        result["services"]["memdb"] = "ok" if await memdb_ping() else "error: ping failed"
+        if result["services"]["memdb"] != "ok":
+            result["status"] = "degraded"
+    else:
+        result["services"]["memdb"] = "not configured"
 
     # Storage
     result["services"]["storage"] = "r2" if _r2_configured() else "local"

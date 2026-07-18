@@ -51,8 +51,9 @@ RUN pip install --no-cache-dir --no-index --find-links=/wheels -r requirements.t
 COPY --chown=udx:udx . /app
 
 # Runtime state lives in named volumes attached by docker-compose so a
-# writable dir must exist even when volumes are absent.
-RUN mkdir -p /app/uploads /app/state \
+# writable dir must exist even when volumes are absent. /app/logs holds
+# the JSON-line log tailed by the Distributed Log Aggregator's agent.
+RUN mkdir -p /app/uploads /app/state /app/logs \
  && chown -R udx:udx /app
 
 USER udx

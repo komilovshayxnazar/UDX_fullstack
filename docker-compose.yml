@@ -3,13 +3,25 @@
 #   docker compose --env-file .env.docker up -d
 #
 # Services:
-#   mongo    — primary DB
-#   redis    — OTP / CSRF / cache store (REQUIRED in production per audit)
-#   neo4j    — optional graph DB for the recommender (comment out to skip)
-#   backend  — FastAPI + Motor
-#   frontend — Nginx serving the built Vite bundle + reverse-proxying
-#              /api/* and /ws/* to the backend, so browsers see a
-#              single origin (fewer CORS holes).
+#   mongo         — primary DB
+#   redis         — CSRF / general cache store, secondary OTP/session
+#                    fallback behind memdb (REQUIRED in production per audit)
+#   neo4j         — optional graph DB for the recommender (comment out to skip)
+#   memdb         — in-memory KV store + WAL (../In-Memory database with WAL);
+#                    primary durable OTP/session/token store for backend
+#   backend       — FastAPI + Motor
+#   gateway       — Go reverse-proxy gateway (../Dynamic Rate Limiter) in
+#                    front of backend: token-bucket rate limiting + a
+#                    load-adaptive circuit breaker that trips on upstream
+#                    5xx ratio
+#   logagg-server — Distributed Log Aggregator central server (gRPC ingest +
+#                    WAL + chunk store + inverted index)
+#   logagg-agent  — tails backend's JSON-line log file and streams it to
+#                    logagg-server
+#   frontend      — Nginx serving the built Vite bundle + reverse-proxying
+#                    /api/* to the gateway and /ws/*, /uploads/* directly to
+#                    the backend, so browsers see a single origin (fewer
+#                    CORS holes).
 #
 # NOTE: We intentionally do NOT bind runtime state (verified_sessions
 # JSON, telegram_*.json, uploads/) into the source tree. All of those
@@ -75,6 +87,28 @@ services:
     #   - "7687:7687"
     networks: [udx]
 
+  memdb:
+    build:
+      context: ../In-Memory database with WAL
+      dockerfile: Dockerfile
+    image: udx-memdb:latest
+    container_name: udx-memdb
+    restart: unless-stopped
+    command:
+      - "--addr=:5455"
+      - "--data=/app/data"
+      - "--sync=interval"
+      - "--auto-snapshot=5m"
+    volumes:
+      - memdb-data:/app/data
+    healthcheck:
+      test: ["CMD", "nc", "-z", "127.0.0.1", "5455"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks: [udx]
+
   backend:
     build:
       context: ./backend
@@ -88,6 +122,8 @@ services:
       redis:
         condition: service_healthy
       neo4j:
+        condition: service_healthy
+      memdb:
         condition: service_healthy
     environment:
       # Wired into fail-closed startup checks (see backend/main.py)
@@ -104,6 +140,13 @@ services:
       NEO4J_URI: "bolt://neo4j:7687"
       NEO4J_USER: ${NEO4J_USER:-neo4j}
       NEO4J_PASSWORD: ${NEO4J_PASSWORD}
+      MEMDB_HOST: memdb
+      MEMDB_PORT: "5455"
+
+      # Distributed Log Aggregator — backend writes JSON-line logs here;
+      # logagg-agent tails the same path via the shared backend-logs volume.
+      LOG_FILE: /app/logs/app.jsonl
+      LOGAGG_COMPONENT: udx-backend
 
       # Frontend + Nginx share the same origin, so allow that host only.
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-https://udx-marketplace.store}
@@ -132,8 +175,10 @@ services:
       # Local uploads only used when R2 is not configured; keeps them
       # out of the image + out of the working tree.
       - backend-uploads:/app/uploads
-      # OTP fallback + Telegram chat-id JSONs (Redis is authoritative in prod)
+      # OTP fallback + Telegram chat-id JSONs (memdb is authoritative in prod)
       - backend-state:/app/state
+      # JSON-line app log, tailed by logagg-agent (see LOG_FILE above)
+      - backend-logs:/app/logs
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request,sys;sys.exit(0 if urllib.request.urlopen('http://localhost:8000/health',timeout=3).status==200 else 1)\""]
       interval: 20s
@@ -142,19 +187,91 @@ services:
       start_period: 30s
     networks: [udx]
 
+  gateway:
+    build:
+      context: ../Dynamic Rate Limiter
+      dockerfile: Dockerfile
+    image: udx-gateway:latest
+    container_name: udx-gateway
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    command:
+      - "--addr=:8080"
+      - "--upstream=http://backend:8000"
+      - "--rate=${GATEWAY_RATE:-20}"
+      - "--burst=${GATEWAY_BURST:-40}"
+      - "--cb-min=${GATEWAY_CB_MIN_REQUESTS:-5}"
+      - "--cb-ratio=${GATEWAY_CB_FAILURE_RATIO:-0.5}"
+      - "--cb-window=${GATEWAY_CB_WINDOW:-10s}"
+      - "--cb-cooldown=${GATEWAY_CB_COOLDOWN:-5s}"
+      - "--upstream-timeout=${GATEWAY_UPSTREAM_TIMEOUT:-10s}"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/_gw/healthz"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks: [udx]
+
+  logagg-server:
+    build:
+      context: ../Distributed Log Aggregator
+      dockerfile: Dockerfile.server
+    image: udx-logagg-server:latest
+    container_name: udx-logagg-server
+    restart: unless-stopped
+    command:
+      - "--addr=:50051"
+      - "--data=/app/data"
+    volumes:
+      - logagg-data:/app/data
+    healthcheck:
+      test: ["CMD", "nc", "-z", "127.0.0.1", "50051"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks: [udx]
+
+  logagg-agent:
+    build:
+      context: ../Distributed Log Aggregator
+      dockerfile: Dockerfile.agent
+    image: udx-logagg-agent:latest
+    container_name: udx-logagg-agent
+    restart: unless-stopped
+    depends_on:
+      logagg-server:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+    command:
+      - "--file=/var/log/udx/app.jsonl"
+      - "--server=logagg-server:50051"
+      - "--source=udx-backend"
+    volumes:
+      # Read the same JSON-line log the backend writes to /app/logs.
+      - backend-logs:/var/log/udx:ro
+    networks: [udx]
+
   frontend:
     build:
       context: .
       dockerfile: Dockerfile
       args:
-        # Same-origin API — Nginx below reverse-proxies /api/* and /ws/*
-        # to backend:8000, so the browser only ever talks to this host.
+        # Same-origin API — Nginx below reverse-proxies /api/* (through the
+        # gateway) and /ws/* + /uploads/* (direct to backend:8000), so the
+        # browser only ever talks to this host.
         VITE_API_URL: ${VITE_API_URL:-/api}
     image: udx-frontend:latest
     container_name: udx-frontend
     restart: unless-stopped
     depends_on:
       backend:
+        condition: service_healthy
+      gateway:
         condition: service_healthy
     ports:
       - "${FRONTEND_HTTP_PORT:-8080}:80"
@@ -173,6 +290,9 @@ volumes:
   neo4j-logs:
   backend-uploads:
   backend-state:
+  backend-logs:
+  memdb-data:
+  logagg-data:
 
 networks:
   udx:
