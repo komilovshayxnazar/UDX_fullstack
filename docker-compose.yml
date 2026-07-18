@@ -7,10 +7,10 @@
 #   redis         — CSRF / general cache store, secondary OTP/session
 #                    fallback behind memdb (REQUIRED in production per audit)
 #   neo4j         — optional graph DB for the recommender (comment out to skip)
-#   memdb         — in-memory KV store + WAL (../In-Memory database with WAL);
-#                    primary durable OTP/session/token store for backend
+#   memdb         — in-memory KV store + WAL (services/memdb); primary
+#                    durable OTP/session/token store for backend
 #   backend       — FastAPI + Motor
-#   gateway       — Go reverse-proxy gateway (../Dynamic Rate Limiter) in
+#   gateway       — Go reverse-proxy gateway (services/dyn-gateway) in
 #                    front of backend: token-bucket rate limiting + a
 #                    load-adaptive circuit breaker that trips on upstream
 #                    5xx ratio
@@ -89,7 +89,7 @@ services:
 
   memdb:
     build:
-      context: ../In-Memory database with WAL
+      context: ./services/memdb
       dockerfile: Dockerfile
     image: udx-memdb:latest
     container_name: udx-memdb
@@ -189,7 +189,7 @@ services:
 
   gateway:
     build:
-      context: ../Dynamic Rate Limiter
+      context: ./services/dyn-gateway
       dockerfile: Dockerfile
     image: udx-gateway:latest
     container_name: udx-gateway
@@ -217,7 +217,7 @@ services:
 
   logagg-server:
     build:
-      context: ../Distributed Log Aggregator
+      context: ./services/logagg
       dockerfile: Dockerfile.server
     image: udx-logagg-server:latest
     container_name: udx-logagg-server
@@ -237,7 +237,7 @@ services:
 
   logagg-agent:
     build:
-      context: ../Distributed Log Aggregator
+      context: ./services/logagg
       dockerfile: Dockerfile.agent
     image: udx-logagg-agent:latest
     container_name: udx-logagg-agent
