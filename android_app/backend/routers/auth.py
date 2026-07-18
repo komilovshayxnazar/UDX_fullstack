@@ -1,13 +1,14 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
+import logging
 import httpx
 import secrets
 from datetime import timedelta
 import os
-import uuid
-import random
 import time
 import json
+
+logger = logging.getLogger(__name__)
 
 import models
 import schemas
@@ -179,8 +180,10 @@ async def init_phone_otp(body: schemas.PhoneOtpInit):
     phone = _normalize_phone(body.phone)
     phone_hash = hmac_hash(phone)
 
-    token = str(uuid.uuid4())[:8].upper()
-    otp_code = str(random.randint(100000, 999999))
+    # ~128 bits of entropy; a truncated UUID (~30 bits) is brute-forceable
+    # in seconds. urlsafe(16) → 22 char base64url string.
+    token = secrets.token_urlsafe(16)
+    otp_code = f"{secrets.randbelow(1_000_000):06d}"
     expires_at = time.time() + OTP_TTL_SECONDS
 
     # Agar foydalanuvchi botda telefon ulashgan bo'lsa — darhol OTP yuborish
@@ -232,10 +235,14 @@ GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
 GOOGLE_REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI")
 
+_IS_PROD = os.getenv("ENVIRONMENT", "production").lower() == "production"
 if not GOOGLE_CLIENT_ID or not GOOGLE_CLIENT_SECRET or not GOOGLE_REDIRECT_URI:
-    # We will print a warning instead of crashing immediately so other auth routes still work,
-    # but any attempt to use Google login will fail naturally or we could raise an error during the request.
-    print("WARNING: Google OAuth environment variables are not fully configured.")
+    # Warn (or fail-closed in production) so other auth routes still work
+    # in dev; a real Google-OAuth call will 500 naturally if used.
+    msg = "Google OAuth environment variables are not fully configured."
+    if _IS_PROD:
+        raise RuntimeError(f"[CONFIG] {msg}")
+    logger.warning("[CONFIG] %s", msg)
 
 def _normalize_phone(raw: str) -> str:
     """Strip spaces/dashes, ensure leading + for digit-only strings."""
@@ -255,7 +262,9 @@ async def login_for_access_token(
     ph    = hmac_hash(phone)
     user  = await models.User.find_one(models.User.phone_hash == ph)
 
-    if not user or not verify_password(form_data.password, user.hashed_password):
+    # OAuth-registered users have no `hashed_password`; guard against
+    # calling bcrypt.checkpw on None to avoid a raw 500 + stack trace.
+    if not user or not user.hashed_password or not verify_password(form_data.password, user.hashed_password):
         # Muvaffaqiyatsiz login — audit log (user topilgan bo'lsa)
         if user:
             await audit_log(
@@ -440,7 +449,7 @@ async def request_telegram_otp(body: schemas.TelegramOtpRequest):
             detail=E.TELEGRAM_USER_NOT_FOUND,
         )
 
-    code = str(random.randint(100000, 999999))
+    code = f"{secrets.randbelow(1_000_000):06d}"
     await _otp_set("tg", username, code)
 
     sent = await send_otp(username, code)

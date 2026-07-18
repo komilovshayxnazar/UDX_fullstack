@@ -1,4 +1,4 @@
-# Logs
+# ── Logs ───────────────────────────────────────────────────────────────
 logs
 *.log
 npm-debug.log*
@@ -7,22 +7,56 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# ── Node / Vite ────────────────────────────────────────────────────────
 node_modules
 dist
 dist-ssr
+build
+.vite/
 *.local
 
-# Local documentation
-architecture.md
+# Vite envs — keep .env.example tracked
+.env
+.env.local
+.env.development
+.env.production
+.env.staging
 
-# Claude Code memory
-.claude/
-
-# Python cache
+# ── Python backend ─────────────────────────────────────────────────────
 **/__pycache__/
 *.pyc
+*.py[cod]
+*.egg-info/
+.venv/
+.pytest_cache/
 
-# Editor directories and files
+# ── Runtime state (must NEVER be committed) ────────────────────────────
+android_app/backend/.env
+android_app/backend/verified_sessions.json
+android_app/backend/telegram_chat_ids.json
+android_app/backend/telegram_phone_chat_ids.json
+android_app/backend/benchmark_results.json
+android_app/backend/uploads/
+android_app/backend/*.db
+
+# ── Android build artifacts + secrets ──────────────────────────────────
+android_app/**/build/
+android_app/.gradle/
+android_app/local.properties
+android_app/app/keystore/
+android_app/app/**/google-services.json
+android_app/bugreport-*.zip
+
+# ── Local documentation / private notes ────────────────────────────────
+architecture.md
+
+# ── Claude Code memory ─────────────────────────────────────────────────
+.claude/
+
+# ── Legacy / duplicate frontend copies (not used by any build) ─────────
+/Icon/
+
+# ── Editor / OS ────────────────────────────────────────────────────────
 .vscode/*
 !.vscode/extensions.json
 .idea
@@ -32,3 +66,4 @@ architecture.md
 *.njsproj
 *.sln
 *.sw?
+Thumbs.db

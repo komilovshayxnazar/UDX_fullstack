@@ -1,214 +1,202 @@
-# UDX Project - How to Run
+# UDX — Run & Deploy
 
-This document describes how to run both the frontend and backend servers for the UDX project.
+The stack:
+
+| Layer          | Path                          | Runtime                    |
+| -------------- | ----------------------------- | -------------------------- |
+| Frontend       | `src/`                        | Vite + React 18 + TS       |
+| Backend        | `android_app/backend/`        | FastAPI + Motor (MongoDB)  |
+| Android client | `android_app/app/`            | Jetpack Compose            |
+| Cache / OTP    | Redis (optional in dev)       |                            |
+| Object store   | Cloudflare R2 (falls back to local `uploads/`) |         |
+| Graph DB       | Neo4j (optional for recs)     |                            |
+
+The old README instructions (SQLite, PowerShell paths under
+`C:\Users\user\Downloads\UDX (2) 2`) are stale. Follow the steps below.
+
+---
 
 ## Prerequisites
 
-- **Node.js** (v18+) with npm — download from https://nodejs.org/
-- **Python** (v3.9+) — already installed on your system (v3.14.0 detected)
+- Node 18+ / npm 10+
+- Python 3.11+
+- MongoDB 6+ running locally or a connection URI
+- Redis (optional in dev; **required in production** — session/OTP/CSRF state
+  spans workers)
+- Docker (optional — quick Mongo + Redis)
 
-## Backend Setup & Run
+---
 
-### 1. Install Backend Dependencies
+## 1. Backend
 
-```powershell
-cd "C:\Users\user\Downloads\UDX (2) 2\UDX (2)"
-python -m venv .venv
-.\.venv\Scripts\python -m pip install --upgrade pip
-.\.venv\Scripts\python -m pip install -r backend\requirements.txt
+### 1.1 Environment
+
+The backend imports its neighboring modules by bare name
+(`import models`, `import database`), so run it with `android_app/backend/`
+as the working directory. Create `android_app/backend/.env` from
+`.env.example`:
+
+```env
+# Required in production
+ENVIRONMENT=production            # dev: leave as "development"
+SECRET_KEY=<python -c "import secrets; print(secrets.token_hex(32))">
+ENCRYPTION_KEY=<64 hex chars, e.g. python -c "import secrets; print(secrets.token_hex(32))">
+HMAC_KEY=<32+ char random string>
+MONGODB_URL=mongodb://user:pass@host:27017/udx
+ALLOWED_ORIGINS=https://udx-marketplace.store
+REDIS_URL=redis://redis:6379/0
+
+# Optional (feature-toggled)
+GOOGLE_CLIENT_ID=...
+GOOGLE_CLIENT_SECRET=...
+GOOGLE_REDIRECT_URI=https://udx-marketplace.store/auth/google/callback
+OPENWEATHER_API_KEY=...
+TELEGRAM_BOT_TOKEN=...
+CLICK_SERVICE_ID=...
+CLICK_MERCHANT_ID=...
+CLICK_SECRET_KEY=...
+CLICK_MERCHANT_USER_ID=...
+CLICK_RETURN_URL=https://udx-marketplace.store/wallet
+NEO4J_URI=bolt://neo4j:7687
+NEO4J_USER=neo4j
+NEO4J_PASSWORD=<strong-random>
+R2_ACCOUNT_ID=...
+R2_ACCESS_KEY_ID=...
+R2_SECRET_ACCESS_KEY=...
+R2_BUCKET_NAME=udx-media
+R2_PUBLIC_URL=https://media.udx.uz
+SENTRY_DSN=https://xxx@ooo.ingest.sentry.io/zzz
+PAYMENT_GATEWAY_URL=https://gateway.example.com
+DEV_ADMIN_TOKEN=<random, only if ENVIRONMENT!=production>
+ACCESS_TOKEN_EXPIRE_MINUTES=30
 ```
 
-**Note:** If PowerShell execution policy blocks the venv activation script, use the direct python path as shown above.
+Fail-closed behavior when `ENVIRONMENT=production`:
 
-### 2. Configure Environment (Optional)
+- `SECRET_KEY`, `ENCRYPTION_KEY`, `HMAC_KEY` must be set — startup raises.
+- `ALLOWED_ORIGINS` must not contain `localhost` / `10.0.2.2` / `127.0.0.1`.
+- Payment routes refuse to charge unless `PAYMENT_GATEWAY_URL` is set
+  (or `PAYMENT_ALLOW_MOCK=1` is set explicitly for a staging smoke).
+- `/dev/*` router is not mounted at all.
+- Google OAuth env is required if any Google auth endpoint is used.
 
-Set these environment variables if you need specific features:
+### 1.2 Install & run (local dev)
 
-```powershell
-# Use SQLite for local development (default, no setup needed):
-$env:DATABASE_URL = "sqlite:///./backend_udx.db"
+```sh
+cd android_app/backend
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -U pip
+pip install -r requirements.txt
 
-# Required for Google OAuth:
-$env:GOOGLE_CLIENT_ID = "your-google-client-id"
-$env:GOOGLE_CLIENT_SECRET = "your-google-client-secret"
+# One-shot Mongo + Redis for dev
+docker run -d --name udx-mongo -p 27017:27017 mongo:7
+docker run -d --name udx-redis -p 6379:6379 redis:7
 
-# Required for weather features:
-$env:OPENWEATHER_API_KEY = "your-openweather-api-key"
-
-# Optional security overrides:
-$env:SECRET_KEY = "your-dev-secret"
-$env:ALGORITHM = "HS256"
-$env:ACCESS_TOKEN_EXPIRE_MINUTES = "30"
+ENVIRONMENT=development \
+  SECRET_KEY=$(python -c "import secrets; print(secrets.token_hex(32))") \
+  ENCRYPTION_KEY=$(python -c "import secrets; print(secrets.token_hex(32))") \
+  HMAC_KEY=$(python -c "import secrets; print(secrets.token_hex(32))") \
+  MONGODB_URL=mongodb://localhost:27017/udx \
+  REDIS_URL=redis://localhost:6379/0 \
+  python -m uvicorn main:app --reload --port 8000
 ```
 
-### 3. Start the Backend Server
+API docs: <http://localhost:8000/docs>
+Health: <http://localhost:8000/health>
 
-```powershell
-cd "C:\Users\user\Downloads\UDX (2) 2\UDX (2)"
-python -m uvicorn backend.main:app --reload --port 8000
+### 1.3 Production (systemd or containers)
+
+```sh
+uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4 --proxy-headers
 ```
 
-The backend will start on **http://127.0.0.1:8000**
+Front with Nginx / Caddy / Traefik and terminate TLS there. Put Redis in
+front of anything OTP-related — the in-memory fallback does not span
+workers and will silently break login / OAuth CSRF at any concurrency
+above `--workers 1`.
 
-- API documentation: **http://localhost:8000/docs** (Swagger UI)
-- OpenAPI schema: **http://localhost:8000/openapi.json**
+---
 
-## Frontend Setup & Run
+## 2. Frontend
 
-### 1. Install Frontend Dependencies
+### 2.1 Install & run
 
-```powershell
-cd "C:\Users\user\Downloads\UDX (2) 2\UDX (2)"
+```sh
+cd <repo-root>
+cp .env.example .env.local     # then edit VITE_API_URL if needed
 npm install
+npm run dev    # http://localhost:3000 (from vite.config.ts)
 ```
 
-### 2. Start the Development Server
+`src/api.ts` reads `VITE_API_URL` (defaulting to
+`https://udx-marketplace.store` if unset). Set one of `.env`,
+`.env.production`, `.env.staging`, or `.env.local` before `npm run build`
+so a build for staging doesn't hit prod.
 
-```powershell
-npm run dev
+### 2.2 Build
+
+```sh
+VITE_API_URL=https://staging.udx-marketplace.store npm run build
+# output: build/
 ```
 
-The frontend will start on **http://localhost:5173** (or another port if 5173 is taken; check console output).
+Serve the `build/` directory with any static host. On a single-page-app
+host (Cloudflare Pages, Netlify, Vercel), make sure to add a fallback
+rewrite of `/* → /index.html` so React Router deep links work.
 
-### 3. Build for Production
+---
 
-```powershell
-npm run build
+## 3. Android client
+
+```sh
+cd android_app
+./gradlew :app:assembleRelease
 ```
 
-Output goes to `build/` directory.
+Environment for signing:
 
-## Running Both Servers Together
-
-**Option 1: Two PowerShell Windows (Recommended)**
-
-1. **Terminal 1 – Backend:**
-   ```powershell
-   cd "C:\Users\user\Downloads\UDX (2) 2\UDX (2)"
-   python -m uvicorn backend.main:app --reload --port 8000
-   ```
-
-2. **Terminal 2 – Frontend:**
-   ```powershell
-   cd "C:\Users\user\Downloads\UDX (2) 2\UDX (2)"
-   npm run dev
-   ```
-
-**Option 2: Single Window with Background Processes**
-
-```powershell
-cd "C:\Users\user\Downloads\UDX (2) 2\UDX (2)"
-
-# Start backend in background
-$backendJob = Start-Job -ScriptBlock {
-    cd "C:\Users\user\Downloads\UDX (2) 2\UDX (2)"
-    python -m uvicorn backend.main:app --reload --port 8000
-}
-
-# Start frontend
-npm run dev
-
-# To stop the backend job later:
-# Stop-Job $backendJob
-# Remove-Job $backendJob
+```sh
+export KEYSTORE_PATH=/absolute/path/to/udx-release.jks
+export KEYSTORE_PASSWORD=***
+export KEY_ALIAS=udx
+export KEY_PASSWORD=***
+export VERSION_CODE=2
+export VERSION_NAME=1.0.1
 ```
 
-## Project Structure
+`app/src/main/res/xml/network_security_config.xml` still allows cleartext
+for `localhost` + `10.0.2.2` (Android emulator loopback) so the debug
+build can talk to a local backend. It affects only those two domains, so
+production traffic still uses TLS.
 
-```
-UDX (2)/
-├── backend/
-│   ├── __init__.py
-│   ├── main.py                 # FastAPI application
-│   ├── models.py               # SQLAlchemy ORM models
-│   ├── schemas.py              # Pydantic request/response schemas
-│   ├── database.py             # Database configuration (SQLite default)
-│   └── requirements.txt         # Python dependencies
-├── src/
-│   ├── main.tsx                # React entry point
-│   ├── App.tsx                 # Main App component
-│   ├── api.ts                  # Frontend API client
-│   └── components/             # React components
-├── package.json                # Frontend dependencies & scripts
-├── tsconfig.json               # TypeScript configuration
-└── vite.config.ts              # Vite build configuration
-```
+If you point the app at a non-production backend, override
+`NetworkModule.BASE_URL` in a build variant instead of editing the
+constant — the WebSocket URL derives from it automatically.
 
-## Key Features
+---
 
-### Backend (FastAPI on port 8000)
-- User authentication with JWT tokens
-- Google OAuth2 integration
-- Product management (seller) & browsing (buyer)
-- Shopping cart & order management
-- Real-time messaging/chat
-- Weather API integration
-- SQLite database (local dev) / PostgreSQL (production)
+## 4. Tests
 
-### Frontend (Vite + React on port 5173)
-- Responsive UI with Radix UI components
-- Role-based access (buyer/seller)
-- Multi-step forms & authentication flows
-- Real-time chat interface
-- Market trends & product search
-- Language selection & translation support
-
-## Troubleshooting
-
-### Backend won't start: `ModuleNotFoundError`
-✅ **Fixed** – The project uses relative imports for `backend/` modules.
-
-### Backend won't start: `UnicodeDecodeError`
-✅ **Fixed** – Default database changed to SQLite (`sqlite:///./backend_udx.db`)
-
-### npm: command not found
-- Install Node.js from https://nodejs.org/
-- Add Node to your system PATH
-
-### Python not found
-- Ensure Python is installed: `python --version`
-- If using venv, activate it before running pip commands
-
-### Port already in use
-- Backend: change `--port 8000` to another port (e.g., `--port 8001`)
-- Frontend: Vite will auto-increment if 5173 is taken
-
-## Environment File (.env)
-
-You can create a `.env` file in the project root for automatic loading:
-
-```
-DATABASE_URL=sqlite:///./backend_udx.db
-SECRET_KEY=your-dev-secret
-GOOGLE_CLIENT_ID=your-client-id
-GOOGLE_CLIENT_SECRET=your-client-secret
-OPENWEATHER_API_KEY=your-api-key
+```sh
+cd tests/backend
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+API_URL=http://localhost:8000 pytest -v
 ```
 
-The backend uses `python-dotenv` to load this automatically.
+Backend integration tests hit the running server — start `main.py` first.
 
-## API Endpoints (Sample)
+---
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/users/` | Create new user |
-| `POST` | `/token` | Login (returns JWT) |
-| `GET` | `/users/me` | Get current user |
-| `GET` | `/products/` | List all products |
-| `POST` | `/products/` | Create product (seller only) |
-| `GET` | `/orders/` | List user's orders |
-| `POST` | `/orders/` | Create order |
-| `GET` | `/chats/` | Get user's chats |
-| `POST` | `/chats/{chat_id}/messages` | Send message |
-| `GET` | `/weather?lat=40&lon=-74` | Get weather data |
+## 5. Common failure modes
 
-Full API docs available at **http://localhost:8000/docs**
-
-## Next Steps
-
-1. Run the backend: `python -m uvicorn backend.main:app --reload --port 8000`
-2. Run the frontend: `npm run dev`
-3. Open **http://localhost:5173** in your browser
-4. Test the API at **http://localhost:8000/docs**
-
-Enjoy!
+| Symptom                                               | Fix                                             |
+| ----------------------------------------------------- | ----------------------------------------------- |
+| `SECRET_KEY environment variable is not set.`         | Set `SECRET_KEY` in `android_app/backend/.env`  |
+| `ENCRYPTION_KEY is required when ENVIRONMENT=production` | Generate + set `ENCRYPTION_KEY`              |
+| `HMAC_KEY is required when ENVIRONMENT=production`    | Generate + set `HMAC_KEY`                       |
+| `ALLOWED_ORIGINS contains dev origins in production`  | Remove `localhost` from `ALLOWED_ORIGINS`       |
+| `Refusing to charge — mock gateway in production`     | Set `PAYMENT_GATEWAY_URL` or (staging) `PAYMENT_ALLOW_MOCK=1` |
+| Chat / OTP works for one user but breaks on scale-up  | Deploy Redis, set `REDIS_URL`                   |
+| Android chat won't connect                            | Ensure the server is reachable at `wss://<host>/ws/chat` and TLS cert is valid |

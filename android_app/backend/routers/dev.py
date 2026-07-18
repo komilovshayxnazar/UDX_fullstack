@@ -1,13 +1,16 @@
 """
-routers/dev.py — Faqat development/debug endpointlari.
+routers/dev.py — Development / debug endpoints only.
 
-Mock ma'lumotlar: mock_data/seed.py
-Bu router production deploymentda o'chirilishi kerak
-(masalan, ENVIRONMENT != "development" bo'lsa include qilinmasin).
+Mounted from main.py only when ENVIRONMENT != "production". As a
+defense-in-depth measure the destructive endpoints below also require
+a shared-secret admin token (DEV_ADMIN_TOKEN) passed as the
+`X-Dev-Admin-Token` header, so a mistakenly mounted router still
+cannot wipe the database from the public internet.
 """
 
-from fastapi import APIRouter
 import os
+
+from fastapi import APIRouter, Depends, Header, HTTPException, status
 
 import models
 from core.encryption import hmac_hash
@@ -16,6 +19,21 @@ import telegram_bot
 from routers.auth import _session_set, _normalize_phone
 
 router = APIRouter(prefix="/dev", tags=["dev"])
+
+
+def _require_dev_admin(x_dev_admin_token: str | None = Header(default=None)) -> None:
+    """Reject dev-router calls unless the shared admin token is presented."""
+    expected = os.getenv("DEV_ADMIN_TOKEN", "").strip()
+    if not expected:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Dev endpoints disabled: DEV_ADMIN_TOKEN is not set",
+        )
+    if not x_dev_admin_token or x_dev_admin_token != expected:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Dev endpoints require X-Dev-Admin-Token header",
+        )
 
 
 @router.get("/telegram/status")
@@ -32,7 +50,7 @@ async def telegram_status(username: str = ""):
     }
 
 
-@router.post("/verify-phone")
+@router.post("/verify-phone", dependencies=[Depends(_require_dev_admin)])
 async def dev_verify_phone(phone: str):
     """Test uchun — OTP tasdiqlamasdan telefon raqamni verified qilib belgilaydi."""
     ph = hmac_hash(_normalize_phone(phone))
@@ -40,13 +58,13 @@ async def dev_verify_phone(phone: str):
     return {"verified": True, "phone": phone}
 
 
-@router.post("/seed")
+@router.post("/seed", dependencies=[Depends(_require_dev_admin)])
 async def seed_data():
     """Mock ma'lumotlarni bazaga yozadi (agar mavjud bo'lmasa)."""
     return await run_seed()
 
 
-@router.post("/reset-seed")
+@router.post("/reset-seed", dependencies=[Depends(_require_dev_admin)])
 async def reset_and_seed():
     """Barcha test ma'lumotlarini o'chirib qayta seed qiladi."""
     for cls in [models.User, models.Category, models.Product,
@@ -55,7 +73,7 @@ async def reset_and_seed():
     return await run_seed()
 
 
-@router.post("/sync-categories")
+@router.post("/sync-categories", dependencies=[Depends(_require_dev_admin)])
 async def sync_categories():
     """Bazada yo'q kategoriyalarni qo'shadi (mavjudlarini o'zgartirmaydi)."""
     from mock_data.seed import CATEGORIES
@@ -68,10 +86,9 @@ async def sync_categories():
     return {"added": added, "total": await models.Category.count()}
 
 
-@router.post("/orders/{order_id}/complete")
+@router.post("/orders/{order_id}/complete", dependencies=[Depends(_require_dev_admin)])
 async def dev_complete_order(order_id: str):
     """Test uchun — order statusini completed ga o'zgartiradi."""
-    from fastapi import HTTPException
     order = await models.Order.get(order_id)
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")

@@ -56,10 +56,20 @@ async def upload_image(file: UploadFile = File(...)):
     return {"url": url}
 
 @router.post("/products/{product_id}/prices/", response_model=schemas.PriceHistory)
-async def add_price_history(product_id: str, price_data: schemas.PriceHistoryCreate):
+async def add_price_history(
+    product_id: str,
+    price_data: schemas.PriceHistoryCreate,
+    current_user: models.User = Depends(get_current_user),
+):
     product = await models.Product.get(product_id)
     if not product:
         raise HTTPException(status_code=404, detail=E.PRODUCT_NOT_FOUND)
+
+    # Only the seller who owns the product can rewrite its price / add a
+    # history point. Otherwise an anonymous caller could overwrite
+    # any product's price.
+    if str(product.seller_id) != str(current_user.id):
+        raise HTTPException(status_code=403, detail=E.SELLER_ONLY)
 
     new_price = models.PriceHistory(
         product_id=product_id,
@@ -68,6 +78,7 @@ async def add_price_history(product_id: str, price_data: schemas.PriceHistoryCre
     product.price = price_data.price
     await new_price.insert()
     await product.save()
+    await cache_delete_pattern("products:*")
     return new_price
 
 @router.get("/products/{product_id}/prices/", response_model=List[schemas.PriceHistory])
@@ -134,8 +145,11 @@ async def read_products(
         query = query.find(models.Product.category_id == category_id)
     if q and q.strip():
         import re
-        regex = re.compile(q.strip(), re.IGNORECASE)
-        query = query.find({"name": {"$regex": regex.pattern, "$options": "i"}})
+        # Escape user input before feeding it to MongoDB's $regex so an
+        # attacker can't submit a pathological pattern that DoS-es the
+        # server or the database (ReDoS). Also caps the pattern length.
+        pattern = re.escape(q.strip()[:100])
+        query = query.find({"name": {"$regex": pattern, "$options": "i"}})
     products = await query.skip(skip).limit(limit).to_list()
     result = await _enrich_with_sellers(products)
     await cache_set(cache_key, jsonable_encoder(result), ttl=PRODUCTS_TTL)
@@ -199,7 +213,8 @@ async def get_recommendations(limit: int = 10, current_user: models.User = Depen
              product_map = {str(p.id): p for p in products}
              return await _enrich_with_sellers([product_map[rid] for rid in recommended_ids if rid in product_map])
     except Exception as e:
-        print(f"ML Recommendation failed: {e}")
+        import logging
+        logging.getLogger(__name__).warning("ML recommendation failed: %s", e)
         
     # Fallback: Top products by views
     products = await models.Product.find_all().sort("-views").limit(limit).to_list()

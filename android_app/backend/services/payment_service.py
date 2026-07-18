@@ -13,6 +13,7 @@ In a full microservices setup this is payment-service (separate process).
 import asyncio
 import json
 import logging
+import os
 import secrets
 import uuid
 from datetime import datetime, timezone
@@ -28,10 +29,33 @@ logger = logging.getLogger("payment_service")
 MAX_RETRIES = 3
 RETRY_BASE_DELAY = 0.5   # seconds
 
+# ── Environment gate ──────────────────────────────────────────────────────────
+_IS_PROD = os.getenv("ENVIRONMENT", "production").lower() == "production"
+_GATEWAY_URL = os.getenv("PAYMENT_GATEWAY_URL", "").strip()
+_ALLOW_MOCK = os.getenv("PAYMENT_ALLOW_MOCK", "").lower() in {"1", "true", "yes"}
+
 
 # ── Mock gateway (replace with real HTTP call in production) ───────────────────
 async def _gateway_charge_once(card_token: str, amount: float) -> dict:
-    """Single attempt at the payment gateway."""
+    """
+    Single attempt at the payment gateway.
+
+    SAFETY: in production this MUST be replaced with a real HTTP call to
+    the actual gateway. To avoid accidental deployments of the mock we
+    refuse to charge unless either PAYMENT_GATEWAY_URL is set (real
+    gateway configured elsewhere and the caller passes tokens issued by
+    it) or PAYMENT_ALLOW_MOCK=1 has been set explicitly for a staging
+    smoke-test.
+    """
+    if _IS_PROD and not _GATEWAY_URL and not _ALLOW_MOCK:
+        logger.critical(
+            "[PAYMENT] Refusing to charge — mock gateway in production. "
+            "Set PAYMENT_GATEWAY_URL or PAYMENT_ALLOW_MOCK=1 explicitly."
+        )
+        raise HTTPException(
+            status_code=503,
+            detail="Payment gateway not configured. Contact support.",
+        )
     if not card_token.startswith("tok_"):
         return {"status": "failed", "transaction_id": ""}
     return {"status": "success", "transaction_id": f"txn_{secrets.token_hex(8)}"}

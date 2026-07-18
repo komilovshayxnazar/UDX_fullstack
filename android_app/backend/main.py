@@ -13,6 +13,22 @@ logging.basicConfig(level=logging.INFO)
 # Load environment variables first
 load_dotenv()
 
+# Fail-closed environment gate. Defaults to "production" so a forgotten
+# ENVIRONMENT env var does not silently enable dev routes or accept
+# ephemeral crypto keys.
+_ENVIRONMENT = os.getenv("ENVIRONMENT", "production").lower()
+_IS_PROD = _ENVIRONMENT == "production"
+
+
+def _require_prod_env(name: str) -> str:
+    """Return env value or raise on missing when running in production."""
+    val = os.getenv(name, "").strip()
+    if not val and _IS_PROD:
+        raise RuntimeError(
+            f"[CONFIG] {name} must be set when ENVIRONMENT=production"
+        )
+    return val
+
 # Sentry — SENTRY_DSN sozlanmagan bo'lsa jim o'tadi
 import sentry_sdk
 from sentry_sdk.integrations.fastapi import FastApiIntegration
@@ -77,9 +93,19 @@ if not os.getenv("R2_ACCOUNT_ID"):
     os.makedirs("uploads", exist_ok=True)
     app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
-# CORS
-_raw_origins = os.getenv("ALLOWED_ORIGINS", "https://udx-marketplace.store,https://localhost:5173,https://10.0.2.2:8000")
+# CORS — default to the production origin only. Additional origins
+# (dev, staging, mobile emulator loopback) must be listed explicitly
+# in ALLOWED_ORIGINS. In production we also refuse to accept any
+# origin that looks like localhost so a stray dev value cannot open
+# credentialed CSRF against the API.
+_raw_origins = os.getenv("ALLOWED_ORIGINS", "https://udx-marketplace.store")
 ALLOWED_ORIGINS = [o.strip() for o in _raw_origins.split(",") if o.strip()]
+if _IS_PROD:
+    bad = [o for o in ALLOWED_ORIGINS if "localhost" in o or "10.0.2.2" in o or "127.0.0.1" in o]
+    if bad:
+        raise RuntimeError(
+            f"[CONFIG] ALLOWED_ORIGINS contains dev origins in production: {bad}"
+        )
 
 app.add_middleware(
     CORSMiddleware,
@@ -138,11 +164,11 @@ app.include_router(reviews_router)
 app.include_router(fraud_router)
 app.include_router(click_router)
 
-# Dev router — FAQAT development muhitida (production'da hech qachon!)
-_ENVIRONMENT = os.getenv("ENVIRONMENT", "development").lower()
-if _ENVIRONMENT != "production":
+# Dev router — mounted only outside production. `_ENVIRONMENT` is
+# resolved above with a fail-closed default of "production".
+if not _IS_PROD:
     app.include_router(dev.router)
     logging.warning(
-        "[SECURITY] Dev router YOQILGAN (ENVIRONMENT=%s). "
-        "Production'da ENVIRONMENT=production qo'ying!", _ENVIRONMENT
+        "[SECURITY] Dev router mounted (ENVIRONMENT=%s). "
+        "Set ENVIRONMENT=production to disable.", _ENVIRONMENT
     )

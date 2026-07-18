@@ -8,7 +8,11 @@ export interface User {
     avatar?: string;
 }
 
-const API_URL = 'https://udx-marketplace.store';
+// API base URL is chosen at build time via Vite env; falls back to the
+// production hostname so a forgotten env still points somewhere sane.
+const API_URL: string =
+    import.meta.env.VITE_API_URL?.replace(/\/$/, '') ||
+    'https://udx-marketplace.store';
 
 export const api = {
     // Auth
