@@ -1,0 +1,20 @@
+# syntax=docker/dockerfile:1.7
+
+# ── Stage 1 · builder ───────────────────────────────────────────────────
+FROM golang:1.25-alpine AS builder
+WORKDIR /build
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+RUN CGO_ENABLED=0 go build -o /out/agent ./cmd/agent
+
+
+# ── Stage 2 · runtime ───────────────────────────────────────────────────
+FROM alpine:3.20 AS runtime
+
+RUN addgroup -S logagg && adduser -S logagg -G logagg
+COPY --from=builder /out/agent /usr/local/bin/agent
+USER logagg
+
+ENTRYPOINT ["/usr/local/bin/agent"]
+CMD ["--file", "/var/log/udx/app.jsonl", "--server", "logagg-server:50051"]
