@@ -1,0 +1,21 @@
+/bin/
+/data/
+*.exe
+*.test
+*.out
+coverage.txt
+coverage.html
+*.log
+nohup.out
+.idea/
+.vscode/
+*.swp
+.DS_Store
+
+# Python client
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+Agent.md
+
