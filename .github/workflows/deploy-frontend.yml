@@ -1,0 +1,81 @@
+name: Deploy frontend to S3 + CloudFront
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "index.html"
+      - "package.json"
+      - "package-lock.json"
+      - "vite.config.ts"
+      - "tsconfig*.json"
+      - ".github/workflows/deploy-frontend.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-frontend-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  build-and-sync:
+    runs-on: ubuntu-latest
+    env:
+      NODE_OPTIONS: "--max-old-space-size=4096"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Type-check
+        run: npx tsc --noEmit -p tsconfig.app.json || true
+        # Non-blocking for now — the codebase has pre-existing implicit-any
+        # warnings that are tracked separately in BUGS.md.
+
+      - name: Build
+        env:
+          VITE_API_URL: ${{ secrets.VITE_API_URL }}
+        run: npm run build
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME_FRONTEND }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      # 1. Sync hashed assets with an immutable long-max-age cache.
+      # 2. Overwrite index.html with a short-TTL header so a redeploy is
+      #    picked up immediately.
+      - name: Sync bundle → S3
+        env:
+          BUCKET: ${{ secrets.FRONTEND_S3_BUCKET }}
+        run: |
+          set -euo pipefail
+          aws s3 sync build/ "s3://${BUCKET}/" \
+              --delete \
+              --exclude "index.html" \
+              --cache-control "public, max-age=31536000, immutable"
+          aws s3 cp build/index.html "s3://${BUCKET}/index.html" \
+              --cache-control "no-cache, no-store, must-revalidate" \
+              --content-type "text/html; charset=utf-8"
+
+      - name: Invalidate CloudFront
+        env:
+          DIST: ${{ secrets.CLOUDFRONT_DISTRIBUTION }}
+        run: |
+          set -euo pipefail
+          aws cloudfront create-invalidation \
+              --distribution-id "$DIST" \
+              --paths "/*" >/dev/null

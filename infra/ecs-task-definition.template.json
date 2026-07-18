@@ -1,0 +1,74 @@
+{
+  "family": "udx-backend",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "1024",
+  "memory": "2048",
+  "executionRoleArn": "<TASK_EXECUTION_ROLE_ARN>",
+  "taskRoleArn": "<TASK_ROLE_ARN>",
+  "runtimePlatform": {
+    "cpuArchitecture": "X86_64",
+    "operatingSystemFamily": "LINUX"
+  },
+  "containerDefinitions": [
+    {
+      "name": "udx-backend",
+      "image": "<IMAGE_URI>",
+      "essential": true,
+      "portMappings": [
+        { "containerPort": 8000, "protocol": "tcp" }
+      ],
+      "environment": [
+        { "name": "ENVIRONMENT",                 "value": "production" },
+        { "name": "ALLOWED_ORIGINS",             "value": "<ALLOWED_ORIGINS>" },
+        { "name": "ALGORITHM",                   "value": "HS256" },
+        { "name": "ACCESS_TOKEN_EXPIRE_MINUTES", "value": "30" }
+      ],
+      "secrets": [
+        { "name": "SECRET_KEY",           "valueFrom": "arn:aws:secretsmanager:<REGION>:<ACCOUNT_ID>:secret:udx/prod/SECRET_KEY" },
+        { "name": "ENCRYPTION_KEY",       "valueFrom": "arn:aws:secretsmanager:<REGION>:<ACCOUNT_ID>:secret:udx/prod/ENCRYPTION_KEY" },
+        { "name": "HMAC_KEY",             "valueFrom": "arn:aws:secretsmanager:<REGION>:<ACCOUNT_ID>:secret:udx/prod/HMAC_KEY" },
+        { "name": "MONGODB_URL",          "valueFrom": "arn:aws:secretsmanager:<REGION>:<ACCOUNT_ID>:secret:udx/prod/MONGODB_URL" },
+        { "name": "REDIS_URL",            "valueFrom": "arn:aws:secretsmanager:<REGION>:<ACCOUNT_ID>:secret:udx/prod/REDIS_URL" },
+        { "name": "NEO4J_URI",            "valueFrom": "arn:aws:secretsmanager:<REGION>:<ACCOUNT_ID>:secret:udx/prod/NEO4J_URI" },
+        { "name": "NEO4J_USER",           "valueFrom": "arn:aws:secretsmanager:<REGION>:<ACCOUNT_ID>:secret:udx/prod/NEO4J_USER" },
+        { "name": "NEO4J_PASSWORD",       "valueFrom": "arn:aws:secretsmanager:<REGION>:<ACCOUNT_ID>:secret:udx/prod/NEO4J_PASSWORD" },
+        { "name": "GOOGLE_CLIENT_ID",     "valueFrom": "arn:aws:secretsmanager:<REGION>:<ACCOUNT_ID>:secret:udx/prod/GOOGLE_CLIENT_ID" },
+        { "name": "GOOGLE_CLIENT_SECRET", "valueFrom": "arn:aws:secretsmanager:<REGION>:<ACCOUNT_ID>:secret:udx/prod/GOOGLE_CLIENT_SECRET" },
+        { "name": "GOOGLE_REDIRECT_URI",  "valueFrom": "arn:aws:secretsmanager:<REGION>:<ACCOUNT_ID>:secret:udx/prod/GOOGLE_REDIRECT_URI" },
+        { "name": "OPENWEATHER_API_KEY",  "valueFrom": "arn:aws:secretsmanager:<REGION>:<ACCOUNT_ID>:secret:udx/prod/OPENWEATHER_API_KEY" },
+        { "name": "TELEGRAM_BOT_TOKEN",   "valueFrom": "arn:aws:secretsmanager:<REGION>:<ACCOUNT_ID>:secret:udx/prod/TELEGRAM_BOT_TOKEN" },
+        { "name": "CLICK_SERVICE_ID",     "valueFrom": "arn:aws:secretsmanager:<REGION>:<ACCOUNT_ID>:secret:udx/prod/CLICK_SERVICE_ID" },
+        { "name": "CLICK_MERCHANT_ID",    "valueFrom": "arn:aws:secretsmanager:<REGION>:<ACCOUNT_ID>:secret:udx/prod/CLICK_MERCHANT_ID" },
+        { "name": "CLICK_SECRET_KEY",     "valueFrom": "arn:aws:secretsmanager:<REGION>:<ACCOUNT_ID>:secret:udx/prod/CLICK_SECRET_KEY" },
+        { "name": "CLICK_MERCHANT_USER_ID","valueFrom": "arn:aws:secretsmanager:<REGION>:<ACCOUNT_ID>:secret:udx/prod/CLICK_MERCHANT_USER_ID" },
+        { "name": "CLICK_RETURN_URL",     "valueFrom": "arn:aws:secretsmanager:<REGION>:<ACCOUNT_ID>:secret:udx/prod/CLICK_RETURN_URL" },
+        { "name": "R2_ACCOUNT_ID",        "valueFrom": "arn:aws:secretsmanager:<REGION>:<ACCOUNT_ID>:secret:udx/prod/R2_ACCOUNT_ID" },
+        { "name": "R2_ACCESS_KEY_ID",     "valueFrom": "arn:aws:secretsmanager:<REGION>:<ACCOUNT_ID>:secret:udx/prod/R2_ACCESS_KEY_ID" },
+        { "name": "R2_SECRET_ACCESS_KEY", "valueFrom": "arn:aws:secretsmanager:<REGION>:<ACCOUNT_ID>:secret:udx/prod/R2_SECRET_ACCESS_KEY" },
+        { "name": "R2_BUCKET_NAME",       "valueFrom": "arn:aws:secretsmanager:<REGION>:<ACCOUNT_ID>:secret:udx/prod/R2_BUCKET_NAME" },
+        { "name": "R2_PUBLIC_URL",        "valueFrom": "arn:aws:secretsmanager:<REGION>:<ACCOUNT_ID>:secret:udx/prod/R2_PUBLIC_URL" },
+        { "name": "SENTRY_DSN",           "valueFrom": "arn:aws:secretsmanager:<REGION>:<ACCOUNT_ID>:secret:udx/prod/SENTRY_DSN" }
+      ],
+      "healthCheck": {
+        "command": ["CMD-SHELL", "curl -fsS http://localhost:8000/health >/dev/null || exit 1"],
+        "interval": 20,
+        "timeout": 5,
+        "retries": 3,
+        "startPeriod": 30
+      },
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/udx-backend",
+          "awslogs-region": "<REGION>",
+          "awslogs-stream-prefix": "backend",
+          "awslogs-create-group": "true"
+        }
+      },
+      "stopTimeout": 30,
+      "readonlyRootFilesystem": false,
+      "user": "10001:10001"
+    }
+  ]
+}

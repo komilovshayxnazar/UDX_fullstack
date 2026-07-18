@@ -1,0 +1,20 @@
+{
+  "Version": "2012-10-17",
+  "Comment": "Attach to the S3 bucket that CloudFront serves the SPA from. Replace <ACCOUNT_ID>, <BUCKET_NAME>, and <DIST_ID> before applying.",
+  "Statement": [
+    {
+      "Sid": "AllowCloudFrontServicePrincipalReadOnly",
+      "Effect": "Allow",
+      "Principal": {
+        "Service": "cloudfront.amazonaws.com"
+      },
+      "Action": "s3:GetObject",
+      "Resource": "arn:aws:s3:::<BUCKET_NAME>/*",
+      "Condition": {
+        "StringEquals": {
+          "AWS:SourceArn": "arn:aws:cloudfront::<ACCOUNT_ID>:distribution/<DIST_ID>"
+        }
+      }
+    }
+  ]
+}
