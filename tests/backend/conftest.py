@@ -14,8 +14,8 @@ Environment variables (optional):
 NOTE: These are integration tests — the backend must be running before you run them.
 
     Terminal 1:
-        cd /path/to/UDX
-        python -m uvicorn backend.main:app --reload --port 8000
+        cd backend
+        python -m uvicorn main:app --reload --port 8000
 
     Terminal 2:
         cd tests/backend
@@ -54,7 +54,7 @@ def require_backend(request):
         pytest.skip(
             f"Backend not reachable at {BASE_URL}. "
             "Start the server first:\n"
-            "  cd android_app/backend && uvicorn main:app --reload --port 8000"
+            "  cd backend && uvicorn main:app --reload --port 8000"
         )
 
 # ---------------------------------------------------------------------------

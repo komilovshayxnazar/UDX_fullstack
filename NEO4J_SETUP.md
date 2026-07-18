@@ -35,8 +35,8 @@ NEO4J_PASSWORD=password
 
 The Neo4j database starts out empty. To populate it with the existing `Users`, `Categories`, `Products`, and `Interactions` from your SQLite/PostgreSQL database, run the sync script:
 
-```powershell
-cd UDX (2)/backend
+```sh
+cd backend
 python sync_neo4j.py
 ```
 

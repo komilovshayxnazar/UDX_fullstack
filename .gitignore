@@ -31,13 +31,13 @@ build
 .pytest_cache/
 
 # ── Runtime state (must NEVER be committed) ────────────────────────────
-android_app/backend/.env
-android_app/backend/verified_sessions.json
-android_app/backend/telegram_chat_ids.json
-android_app/backend/telegram_phone_chat_ids.json
-android_app/backend/benchmark_results.json
-android_app/backend/uploads/
-android_app/backend/*.db
+backend/.env
+backend/verified_sessions.json
+backend/telegram_chat_ids.json
+backend/telegram_phone_chat_ids.json
+backend/benchmark_results.json
+backend/uploads/
+backend/*.db
 
 # ── Android build artifacts + secrets ──────────────────────────────────
 android_app/**/build/

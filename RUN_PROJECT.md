@@ -5,7 +5,7 @@ The stack:
 | Layer          | Path                          | Runtime                    |
 | -------------- | ----------------------------- | -------------------------- |
 | Frontend       | `src/`                        | Vite + React 18 + TS       |
-| Backend        | `android_app/backend/`        | FastAPI + Motor (MongoDB)  |
+| Backend        | `backend/`        | FastAPI + Motor (MongoDB)  |
 | Android client | `android_app/app/`            | Jetpack Compose            |
 | Cache / OTP    | Redis (optional in dev)       |                            |
 | Object store   | Cloudflare R2 (falls back to local `uploads/`) |         |
@@ -32,8 +32,8 @@ The old README instructions (SQLite, PowerShell paths under
 ### 1.1 Environment
 
 The backend imports its neighboring modules by bare name
-(`import models`, `import database`), so run it with `android_app/backend/`
-as the working directory. Create `android_app/backend/.env` from
+(`import models`, `import database`), so run it with `backend/`
+as the working directory. Create `backend/.env` from
 `.env.example`:
 
 ```env
@@ -83,7 +83,7 @@ Fail-closed behavior when `ENVIRONMENT=production`:
 ### 1.2 Install & run (local dev)
 
 ```sh
-cd android_app/backend
+cd backend
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -U pip
@@ -193,7 +193,7 @@ Backend integration tests hit the running server — start `main.py` first.
 
 | Symptom                                               | Fix                                             |
 | ----------------------------------------------------- | ----------------------------------------------- |
-| `SECRET_KEY environment variable is not set.`         | Set `SECRET_KEY` in `android_app/backend/.env`  |
+| `SECRET_KEY environment variable is not set.`         | Set `SECRET_KEY` in `backend/.env`  |
 | `ENCRYPTION_KEY is required when ENVIRONMENT=production` | Generate + set `ENCRYPTION_KEY`              |
 | `HMAC_KEY is required when ENVIRONMENT=production`    | Generate + set `HMAC_KEY`                       |
 | `ALLOWED_ORIGINS contains dev origins in production`  | Remove `localhost` from `ALLOWED_ORIGINS`       |

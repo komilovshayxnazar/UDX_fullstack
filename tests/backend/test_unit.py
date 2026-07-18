@@ -21,7 +21,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 pytestmark = pytest.mark.unit  # server talab qilinmaydi
 
 # Backend modullarini import qilish uchun path qo'shish
-_BACKEND = os.path.join(os.path.dirname(__file__), "../../android_app/backend")
+_BACKEND = os.path.join(os.path.dirname(__file__), "../../backend")
 if _BACKEND not in sys.path:
     sys.path.insert(0, _BACKEND)
 

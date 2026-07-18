@@ -1,7 +1,7 @@
 # UDX — Production Readiness Audit
 
 Codebase scanned: `UDX_fullstack/` (React+Vite frontend, FastAPI+MongoDB
-backend at `android_app/backend/`, Android Compose client at
+backend at `backend/`, Android Compose client at
 `android_app/app/`, integration tests at `tests/`).
 
 Issues are grouped by severity. Each item includes a `file:line`
@@ -14,7 +14,7 @@ reproducible deploy.
 ## P0 — Blocks production launch (money loss / data loss / auth bypass)
 
 ### 1. Payment gateway is a mock that always succeeds
-- **Where:** `android_app/backend/services/payment_service.py:33-38`
+- **Where:** `backend/services/payment_service.py:33-38`
   ```python
   async def _gateway_charge_once(card_token: str, amount: float) -> dict:
       if not card_token.startswith("tok_"):
@@ -29,7 +29,7 @@ reproducible deploy.
   `PAYMENT_GATEWAY_URL` is unset.
 
 ### 2. `ENVIRONMENT` defaults to `development` → dev router exposed
-- **Where:** `android_app/backend/main.py:142-148`
+- **Where:** `backend/main.py:142-148`
   ```python
   _ENVIRONMENT = os.getenv("ENVIRONMENT", "development").lower()
   if _ENVIRONMENT != "production":
@@ -46,7 +46,7 @@ reproducible deploy.
   `/dev/*` endpoint and check for an admin role.
 
 ### 3. `ENCRYPTION_KEY` missing → ephemeral key silently generated
-- **Where:** `android_app/backend/core/encryption.py:17-27`
+- **Where:** `backend/core/encryption.py:17-27`
   ```python
   if _enc_hex and len(_enc_hex) == 64:
       _key = bytes.fromhex(_enc_hex)
@@ -63,7 +63,7 @@ reproducible deploy.
   `ENVIRONMENT=production` (or unconditionally).
 
 ### 4. `HMAC_KEY` has a default value
-- **Where:** `android_app/backend/core/encryption.py:18`
+- **Where:** `backend/core/encryption.py:18`
   ```python
   _hmac_secret = os.getenv("HMAC_KEY", "change_this_hmac_secret_in_production").encode()
   ```
@@ -89,7 +89,7 @@ reproducible deploy.
   and document `VITE_API_URL` in `.env.example`.
 
 ### 6. CORS default allow-list includes dev origins
-- **Where:** `android_app/backend/main.py:81`
+- **Where:** `backend/main.py:81`
   ```python
   _raw_origins = os.getenv("ALLOWED_ORIGINS",
       "https://udx-marketplace.store,https://localhost:5173,https://10.0.2.2:8000")
@@ -126,11 +126,11 @@ reproducible deploy.
 
 ### 9. Sensitive runtime state committed to the repo
 - **Where:**
-  - `android_app/backend/verified_sessions.json` — verified-phone hashes
-  - `android_app/backend/telegram_chat_ids.json`,
+  - `backend/verified_sessions.json` — verified-phone hashes
+  - `backend/telegram_chat_ids.json`,
     `telegram_phone_chat_ids.json` — Telegram user → chat_id mappings
-  - `android_app/backend/benchmark_results.json`
-  - `android_app/backend/uploads/` — 17 user-uploaded images
+  - `backend/benchmark_results.json`
+  - `backend/uploads/` — 17 user-uploaded images
   - `android_app/bugreport-sdk_gphone16k_arm64-*.zip` — 6.9 MB
     Android bug report
 - **Impact:** Sensitive user identifiers are checked in, and every
@@ -154,13 +154,13 @@ reproducible deploy.
 ### 11. Documentation is stale / wrong
 - **Where:** `RUN_PROJECT.md`
 - Says backend lives at `backend/main.py`; it's actually at
-  `android_app/backend/main.py`.
+  `backend/main.py`.
 - Uses Windows PowerShell + `C:\Users\user\Downloads\UDX (2) 2\UDX (2)`
   paths.
 - Recommends SQLite; the real code uses **MongoDB** + `beanie`.
 - Recommends `python -m uvicorn backend.main:app`, but the module uses
   `import models` / `import database` (bare imports), so the CWD must
-  be `android_app/backend/` and the command is
+  be `backend/` and the command is
   `python -m uvicorn main:app`.
 - Says frontend runs on port 5173; `vite.config.ts:21` sets
   `port: 3000, open: true`.
@@ -169,7 +169,7 @@ reproducible deploy.
   Redis, R2, Sentry, Click, Telegram, Neo4j, Google OAuth).
 
 ### 12. `passlib` deprecated + unused
-- **Where:** `android_app/backend/requirements.txt:6`
+- **Where:** `backend/requirements.txt:6`
 - `core/security.py` uses `import bcrypt` directly; passlib is dead
   weight. Passlib itself is unmaintained.
 - **Fix:** Remove `passlib[bcrypt]`.
@@ -195,7 +195,7 @@ reproducible deploy.
   types to `^18.3`.
 
 ### 15. ReDoS via user-controlled regex on product search
-- **Where:** `android_app/backend/routers/products.py:135-138`
+- **Where:** `backend/routers/products.py:135-138`
   ```python
   if q and q.strip():
       import re
@@ -214,7 +214,7 @@ reproducible deploy.
 - **Fix:** `datetime.now(timezone.utc)` everywhere.
 
 ### 17. Google OAuth CSRF nonce store is process-local when Redis is down
-- **Where:** `android_app/backend/routers/auth.py:290-297` (`_csrf_issue`)
+- **Where:** `backend/routers/auth.py:290-297` (`_csrf_issue`)
   and the corresponding verification path.
 - **Impact:** On multi-worker deploys (uvicorn `--workers 4`, gunicorn),
   the nonce issued by worker A may be verified by worker B → 100% CSRF
@@ -236,7 +236,7 @@ Telegram chat IDs
   file).
 
 ### 19. `verify_password(None)` will crash for OAuth users
-- **Where:** `android_app/backend/routers/auth.py:258`
+- **Where:** `backend/routers/auth.py:258`
   ```python
   if not user or not verify_password(form_data.password, user.hashed_password):
   ```
@@ -250,7 +250,7 @@ Telegram chat IDs
   ```
 
 ### 20. `add_price_history` allows anyone to rewrite a product's price
-- **Where:** `android_app/backend/routers/products.py:58-71`
+- **Where:** `backend/routers/products.py:58-71`
 - **Impact:** Endpoint is not gated by `Depends(get_current_user)` and
   does not verify `product.seller_id == current_user.id`. Any anonymous
   caller can `POST /products/{id}/prices/` and overwrite `product.price`
@@ -258,7 +258,7 @@ Telegram chat IDs
 - **Fix:** Require auth + seller ownership check.
 
 ### 21. `orders.py` has no idempotency key
-- **Where:** `android_app/backend/routers/orders.py:12-48`
+- **Where:** `backend/routers/orders.py:12-48`
 - **Impact:** A network retry double-creates an order. The payments
   path (`services/payment_service.py`) already models idempotency
   correctly; orders don't.
@@ -266,7 +266,7 @@ Telegram chat IDs
   `wallet_service.credit(idempotency_key=...)`.
 
 ### 22. Rate limiter uses raw remote address, no XFF trust list
-- **Where:** `android_app/backend/core/rate_limiter.py:21`
+- **Where:** `backend/core/rate_limiter.py:21`
   ```python
   limiter = Limiter(key_func=get_remote_address)
   ```
@@ -280,7 +280,7 @@ Telegram chat IDs
   logging.
 
 ### 23. Weather API key placed in URL query string
-- **Where:** `android_app/backend/routers/weather.py:15`
+- **Where:** `backend/routers/weather.py:15`
 - **Impact:** `?appid=<key>` shows up in access logs (uvicorn, nginx,
   Cloudflare) and in the OpenWeather side. Rotating the key requires
   purging all those logs.
@@ -288,7 +288,7 @@ Telegram chat IDs
   scrub the query string when logging.
 
 ### 24. OTP token entropy is only ~30 bits
-- **Where:** `android_app/backend/routers/auth.py:182`
+- **Where:** `backend/routers/auth.py:182`
   ```python
   token = str(uuid.uuid4())[:8].upper()
   ```
@@ -301,7 +301,7 @@ Telegram chat IDs
 ## P2 — Hardening + hygiene before scale
 
 ### 25. Chat WebSocket auth token in the query string
-- **Where:** `android_app/backend/routers/chat.py:174-189`
+- **Where:** `backend/routers/chat.py:174-189`
 - Query strings end up in access logs. Prefer
   `Sec-WebSocket-Protocol` or a short-lived signed nonce.
 
@@ -344,19 +344,19 @@ Telegram chat IDs
   `<domain-config>` block removed.
 
 ### 32. `magic bytes` allow-list doesn't cover HEIC / AVIF
-- **Where:** `android_app/backend/routers/products.py:23-38`
+- **Where:** `backend/routers/products.py:23-38`
 - iOS photos are HEIC by default. Upload silently rejected with
   `INVALID_IMAGE_TYPE`.
 - **Fix:** Add `image/heic`, `image/heif`, `image/avif` (with matching
   magic bytes) or transcode server-side.
 
 ### 33. `requirements.txt` is unpinned
-- **Where:** `android_app/backend/requirements.txt`
+- **Where:** `backend/requirements.txt`
 - Only `motor<4.0.0` has an upper bound. Everything else is `>=`.
 - **Fix:** `pip-compile` a `requirements.lock` and use it in CI.
 
 ### 34. `Neo4j` driver commented out
-- **Where:** `android_app/backend/requirements.txt:20`
+- **Where:** `backend/requirements.txt:20`
   ```
   # neo4j>=5.0.0
   ```
@@ -421,7 +421,7 @@ via the existing `services/event_bus.py`.
   `if __name__ == "__main__":` or use `logging.config.dictConfig()`.
 
 ### 44. `authlib` in requirements but never imported
-- **Where:** `android_app/backend/requirements.txt:7`
+- **Where:** `backend/requirements.txt:7`
 - Google OAuth in `routers/auth.py` uses `httpx` + raw endpoints. Drop
   the dep.
 

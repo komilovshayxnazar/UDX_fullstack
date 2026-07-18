@@ -38,7 +38,7 @@ import httpx
 import websockets
 
 # Event bus unit testlari uchun backend modullari
-_BACKEND = os.path.join(os.path.dirname(__file__), "../../android_app/backend")
+_BACKEND = os.path.join(os.path.dirname(__file__), "../../backend")
 if _BACKEND not in sys.path:
     sys.path.insert(0, _BACKEND)
 
@@ -264,7 +264,7 @@ class TestEventBusHandlers:
         """event_bus.publish() handler'ni chaqiradi."""
         import sys
         sys.path.insert(0, os.path.join(os.path.dirname(__file__),
-                                        "../../android_app/backend"))
+                                        "../../backend"))
         from services.event_bus import event_bus
 
         received = []
