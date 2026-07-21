@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">UDX</string>
     <string name="cancel">Bekor qilish</string>
@@ -84,14 +84,14 @@
     <string name="contracts_coming_soon_title">Tez kunda ishga tushadi</string>
     <string name="contracts_coming_soon_desc">Shartnomalar va hujjatlar maxfiylik talablari sababli tashqi serverlarda saqlanishi taqiqlangan. Bu bo\'lim yaqin orada to\'liq ishga tushiriladi.</string>
     <string name="language_en">English</string>
-    <string name="language_es">EspaГ±ol</string>
-    <string name="language_fr">FranГ§ais</string>
+    <string name="language_es">Español</string>
+    <string name="language_fr">Français</string>
     <string name="language_de">Deutsch</string>
-    <string name="language_ru">Р СѓСЃСЃРєРёР№</string>
+    <string name="language_ru">Русский</string>
     <string name="language_uz">O\'zbek</string>
-    <string name="language_kk">ТљР°Р·Р°Т›</string>
-    <string name="language_ky">РљС‹СЂРіС‹Р·С‡Р°</string>
-    <string name="language_tg">РўРѕТ·РёРєУЈ</string>
+    <string name="language_kk">Қазақ</string>
+    <string name="language_ky">Кыргызча</string>
+    <string name="language_tg">Тоҷикӣ</string>
     <string name="create_account">Akkaunt yaratish</string>
     <string name="continue_btn">Davom etish</string>
     <string name="back">Orqaga</string>
@@ -108,5 +108,30 @@
     <string name="register_step_password">3-qadam 3 tadan — Parol o\'rnating</string>
     <string name="send_code">Kod yuborish</string>
     <string name="change_telegram">Boshqa Telegram foydalanuvchi nomini ishlatish</string>
+    <string name="orders_title">Buyurtmalarim</string>
+    <string name="orders_empty_title">Buyurtmalar yo\'q</string>
+    <string name="orders_empty_desc">Siz hali birorta buyurtma bermagansiz.</string>
+    <string name="order_status_new">Yangi</string>
+    <string name="order_status_in_process">Jarayonda</string>
+    <string name="order_status_completed">Yakunlangan</string>
+    <string name="order_status_cancelled">Bekor qilingan</string>
+    <string name="order_total_label">Jami</string>
+    <string name="order_accept">Qabul qilish</string>
+    <string name="order_mark_completed">Yakunlash</string>
+    <string name="order_leave_review">Sharh qoldirish</string>
+    <string name="review_dialog_title">Sharh qoldirish</string>
+    <string name="review_rating_label">Bahoingiz</string>
+    <string name="review_comment_hint">Xarid tajribangiz haqida yozing...</string>
+    <string name="review_comment_too_short">Izoh kamida 10 ta belgidan iborat bo\'lishi kerak</string>
+    <string name="review_submit">Yuborish</string>
+    <string name="err_order_not_found">Buyurtma topilmadi</string>
+    <string name="err_order_not_yours">Bu buyurtma sizga tegishli emas</string>
+    <string name="err_order_status_invalid_transition">Buyurtma holatini bu tarzda o\'zgartirib bo\'lmaydi</string>
+    <string name="err_buyer_only_reviews">Faqat xaridorlar sharh qoldira oladi</string>
+    <string name="err_completed_orders_only">Sharh faqat yakunlangan buyurtmalar uchun qoldiriladi</string>
+    <string name="err_seller_mismatch">Sotuvchi mos kelmadi</string>
+    <string name="err_self_review_forbidden">O\'z mahsulotingizga sharh qoldira olmaysiz</string>
+    <string name="err_review_already_exists">Bu buyurtmaga allaqachon sharh qoldirilgan</string>
+    <string name="err_generic">Xatolik yuz berdi</string>
 </resources>
 

@@ -39,6 +39,7 @@ fun DashboardScreen(
     onAddProduct: () -> Unit = {},
     onNavigateToMessages: () -> Unit = {},
     onNavigateToCart: () -> Unit = {},
+    onNavigateToOrders: () -> Unit = {},
     onNavigateToSettings: () -> Unit = {},
     onNavigateToCategory: (String, String) -> Unit = { _, _ -> },
     onAddToCart: (com.udx.app.data.ProductRemote) -> Unit = {},
@@ -198,7 +199,12 @@ fun DashboardScreen(
                             )
                         }
                         Icon(Icons.Outlined.Settings, "Settings", tint = Color.White, modifier = Modifier.clickable { onNavigateToSettings() })
-                        Icon(Icons.Outlined.CheckCircle, "Favorites", tint = Color.White, modifier = Modifier.clickable { })
+                        Icon(
+                            Icons.Outlined.Receipt,
+                            stringResource(R.string.orders_title),
+                            tint = Color.White,
+                            modifier = Modifier.clickable { onNavigateToOrders() }
+                        )
                         BadgedBox(
                             badge = {
                                 if (cartItemCount > 0) {

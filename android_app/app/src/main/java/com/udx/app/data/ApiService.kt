@@ -6,6 +6,7 @@ import retrofit2.http.FormUrlEncoded
 import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.PUT
+import retrofit2.http.PATCH
 import retrofit2.http.Body
 import retrofit2.http.Multipart
 import retrofit2.http.Part
@@ -127,6 +128,12 @@ interface ApiService {
 
     @GET("orders/")
     suspend fun getOrders(): List<OrderOut>
+
+    @PATCH("orders/{orderId}/status")
+    suspend fun updateOrderStatus(
+        @retrofit2.http.Path("orderId") orderId: String,
+        @Body update: OrderStatusUpdate
+    ): OrderOut
 
     @GET("users/{userId}/public")
     suspend fun getPublicProfile(@retrofit2.http.Path("userId") userId: String): PublicUserProfile

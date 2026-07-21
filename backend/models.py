@@ -153,6 +153,7 @@ class OrderItem(BaseModel):
     product_id: str
     quantity: int
     price_at_purchase: float
+    product_name: Optional[str] = None  # denormalized at order time — survives product edits/deletes
 
 class Order(Document):
     buyer_id: str

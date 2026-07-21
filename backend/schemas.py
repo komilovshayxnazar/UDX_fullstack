@@ -263,6 +263,10 @@ class OrderCreate(BaseModel):
 
 class OrderItem(MongoBase, OrderItemBase):
     price_at_purchase: float
+    product_name: Optional[str] = None
+
+class OrderStatusUpdate(BaseModel):
+    status: OrderStatus
 
 class Order(MongoBase):
     id: str
@@ -270,6 +274,11 @@ class Order(MongoBase):
     status: OrderStatus
     total: float
     items: List[OrderItem]
+    seller_id: Optional[str] = None
+    seller_name: Optional[str] = None
+    buyer_name: Optional[str] = None
+    is_buyer: bool = True
+    has_review: bool = False
 
 # Category Schemas
 class CategoryBase(BaseModel):

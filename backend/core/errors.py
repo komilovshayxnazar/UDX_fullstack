@@ -44,9 +44,10 @@ class E:
     SELLER_ONLY        = "errors.seller_only"
 
     # ── Orders ──────────────────────────────────────────────────────────────
-    SINGLE_SELLER_CONSTRAINT = "errors.single_seller_constraint"
-    ORDER_NOT_FOUND          = "errors.order_not_found"
-    ORDER_NOT_YOURS          = "errors.order_not_yours"
+    SINGLE_SELLER_CONSTRAINT      = "errors.single_seller_constraint"
+    ORDER_NOT_FOUND               = "errors.order_not_found"
+    ORDER_NOT_YOURS               = "errors.order_not_yours"
+    ORDER_STATUS_INVALID_TRANSITION = "errors.order_status_invalid_transition"
 
     # ── Reviews ─────────────────────────────────────────────────────────────
     BUYER_ONLY_REVIEWS    = "errors.buyer_only_reviews"

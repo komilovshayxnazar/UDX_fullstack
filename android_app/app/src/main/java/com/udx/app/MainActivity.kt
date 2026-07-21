@@ -77,6 +77,7 @@ fun MainAppScaffold(
     onLogout: () -> Unit,
     onNavigateToChat: () -> Unit,
     onNavigateToCart: () -> Unit,
+    onNavigateToOrders: () -> Unit,
     onNavigateToCategory: (String, String) -> Unit,
     onNavigateToSeller: (String) -> Unit = {},
     cartViewModel: CartViewModel,
@@ -135,6 +136,7 @@ fun MainAppScaffold(
                         onAddProduct = { if (isSeller) showAddProduct = true },
                         onNavigateToMessages = onNavigateToChat,
                         onNavigateToCart = onNavigateToCart,
+                        onNavigateToOrders = onNavigateToOrders,
                         onNavigateToSettings = { selectedTab = MainTab.Profile },
                         onNavigateToCategory = onNavigateToCategory,
                         onAddToCart = { cartViewModel.addToCart(it) },
@@ -232,6 +234,7 @@ fun AppNavigation() {
             onLogout = { currentScreen = "welcome" },
             onNavigateToChat = { currentScreen = "chat" },
             onNavigateToCart = { currentScreen = "cart" },
+            onNavigateToOrders = { currentScreen = "orders" },
             onNavigateToCategory = { id, name ->
                 selectedCategoryId = id
                 selectedCategoryName = name
@@ -259,5 +262,6 @@ fun AppNavigation() {
             viewModel = cartViewModel,
             onBack = { currentScreen = "main" }
         )
+        "orders" -> OrdersScreen(onBack = { currentScreen = "main" })
     }
 }

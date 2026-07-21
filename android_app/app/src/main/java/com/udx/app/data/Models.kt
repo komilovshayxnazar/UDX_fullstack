@@ -282,12 +282,28 @@ data class OrderCreate(
     @SerializedName("delivery_method") val deliveryMethod: String = "courier"
 )
 
+data class OrderItemOut(
+    @SerializedName("product_id") val productId: String,
+    val quantity: Int,
+    @SerializedName("price_at_purchase") val priceAtPurchase: Double,
+    @SerializedName("product_name") val productName: String?
+)
+
 data class OrderOut(
     val id: String,
     val date: String,
     val status: String,
     val total: Double,
-    val items: List<OrderItemCreate>
+    val items: List<OrderItemOut>,
+    @SerializedName("seller_id") val sellerId: String?,
+    @SerializedName("seller_name") val sellerName: String?,
+    @SerializedName("buyer_name") val buyerName: String?,
+    @SerializedName("is_buyer") val isBuyer: Boolean,
+    @SerializedName("has_review") val hasReview: Boolean
+)
+
+data class OrderStatusUpdate(
+    val status: String
 )
 
 data class ContractRemote(
