@@ -49,7 +49,8 @@ if _sentry_dsn:
     logging.info("[INIT] Sentry initialized")
 
 import models
-import database
+import db as db_module
+from sqlalchemy import text
 
 # Import all routers
 from routers import auth, users, products, orders, chat, weather, dev, contracts, payments
@@ -72,10 +73,14 @@ from core.memdb_store import init_memdb, close_memdb
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    logging.info("[INIT] Connecting to database...")
+    # Schema is owned by Alembic (`alembic upgrade head`, run before uvicorn
+    # starts — see backend/Dockerfile), not by app startup. We just verify
+    # connectivity here so a misconfigured DATABASE_URL fails fast.
+    logging.info("[INIT] Verifying database connectivity...")
     try:
-        await database.init_db()
-        logging.info("[INIT] Database initialized")
+        async with db_module.engine.connect() as conn:
+            await conn.execute(text("SELECT 1"))
+        logging.info("[INIT] Database reachable")
     except Exception as e:
         logging.critical(f"[INIT] Database connection failed: {e}")
         raise RuntimeError(f"Cannot start without database: {e}")
@@ -87,6 +92,7 @@ async def lifespan(app: FastAPI):
     await stop_bot()
     await close_memdb()
     await close_cache()
+    await db_module.dispose_engine()
 
 
 app = FastAPI(title="UDX API", lifespan=lifespan)
@@ -145,19 +151,20 @@ async def trace_id_middleware(request: Request, call_next):
 
 @app.get("/health", tags=["system"])
 async def health_check():
-    """Servis holati: MongoDB, Redis, Storage."""
+    """Servis holati: PostgreSQL, Redis, Storage."""
     from core.cache import get_redis
     from core.storage import _r2_configured
     from core.memdb_store import is_memdb_enabled, memdb_ping
 
     result: dict = {"status": "ok", "services": {}}
 
-    # MongoDB
+    # PostgreSQL
     try:
-        await database.motor_client.admin.command("ping")
-        result["services"]["mongodb"] = "ok"
+        async with db_module.engine.connect() as conn:
+            await conn.execute(text("SELECT 1"))
+        result["services"]["postgres"] = "ok"
     except Exception as exc:
-        result["services"]["mongodb"] = f"error: {exc}"
+        result["services"]["postgres"] = f"error: {exc}"
         result["status"] = "degraded"
 
     # Redis

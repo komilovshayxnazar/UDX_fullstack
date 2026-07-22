@@ -8,10 +8,14 @@ import os
 import time
 import json
 
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 logger = logging.getLogger(__name__)
 
 import models
 import schemas
+from db import get_db
 from core.security import verify_password, create_access_token, ACCESS_TOKEN_EXPIRE_MINUTES
 from core.encryption import encrypt, decrypt, hmac_hash
 from core.errors import E
@@ -316,10 +320,12 @@ def _normalize_phone(raw: str) -> str:
 async def login_for_access_token(
     request: Request,
     form_data: OAuth2PasswordRequestForm = Depends(),
+    db: AsyncSession = Depends(get_db),
 ):
     phone = _normalize_phone(form_data.username)
     ph    = hmac_hash(phone)
-    user  = await models.User.find_one(models.User.phone_hash == ph)
+    result = await db.execute(select(models.User).where(models.User.phone_hash == ph))
+    user  = result.scalar_one_or_none()
 
     # OAuth-registered users have no `hashed_password`; guard against
     # calling bcrypt.checkpw on None to avoid a raw 500 + stack trace.
@@ -327,6 +333,7 @@ async def login_for_access_token(
         # Muvaffaqiyatsiz login — audit log (user topilgan bo'lsa)
         if user:
             await audit_log(
+                db,
                 user=user,
                 action=models.AuditAction.login_failed,
                 detail={"reason": "wrong_password"},
@@ -344,6 +351,7 @@ async def login_for_access_token(
         expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
     )
     await audit_log(
+        db,
         user=user,
         action=models.AuditAction.login,
         detail={},
@@ -414,7 +422,7 @@ async def google_login():
     return {"auth_url": google_auth_url}
 
 @router.get("/auth/google/callback")
-async def google_callback(code: str, state: str = None):
+async def google_callback(code: str, state: str = None, db: AsyncSession = Depends(get_db)):
     token_url = "https://oauth2.googleapis.com/token"
     token_data = {
         "code": code,
@@ -458,7 +466,10 @@ async def google_callback(code: str, state: str = None):
     else:
         raise HTTPException(status_code=400, detail="errors.oauth_invalid_state")
 
-    user = await models.User.find_one(models.User.phone_hash == hmac_hash(f"google_{google_id}"))
+    result = await db.execute(
+        select(models.User).where(models.User.phone_hash == hmac_hash(f"google_{google_id}"))
+    )
+    user = result.scalar_one_or_none()
 
     if action == "register":
         if user:
@@ -474,7 +485,8 @@ async def google_callback(code: str, state: str = None):
             name=name or email,
             avatar=user_info.get("picture")
         )
-        await user.insert()
+        db.add(user)
+        await db.commit()
 
         app_access_token = create_access_token(
             data={"sub": ph},

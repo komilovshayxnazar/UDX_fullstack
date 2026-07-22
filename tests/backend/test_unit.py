@@ -150,49 +150,57 @@ class TestStorage:
 class TestWalletServiceLogic:
     """
     wallet_service.credit() va debit() mantiqini mock bilan tekshiradi.
-    models.Transaction va event_bus mock qilinadi — MongoDB kerak emas.
+    Wallet.balance endi User ustida emas — AsyncSession va Wallet mock qilinadi,
+    Postgres kerak emas.
     """
+
+    def _mock_db_with_wallet(self, balance: float):
+        """AsyncSession mock: select(Wallet) natijasi mavjud wallet'ni qaytaradi."""
+        wallet = MagicMock()
+        wallet.id = "wallet-1"
+        wallet.balance = balance
+
+        result = MagicMock()
+        result.scalar_one_or_none.return_value = wallet
+
+        db = MagicMock()
+        db.execute = AsyncMock(return_value=result)
+        db.add = MagicMock()
+        db.flush = AsyncMock()
+        db.commit = AsyncMock()
+        db.refresh = AsyncMock()
+        return db, wallet
 
     @pytest.mark.asyncio
     async def test_credit_increases_balance(self):
         import services.wallet_service as ws
         import services.event_bus as eb
 
-        mock_txn = MagicMock()
-        mock_txn.insert = AsyncMock()
-
+        db, wallet = self._mock_db_with_wallet(100.0)
         user = MagicMock()
         user.id = "user123"
-        user.balance = 100.0
-        user.save = AsyncMock()
 
-        with patch("services.wallet_service.models.Transaction", return_value=mock_txn), \
-             patch.object(eb.event_bus, "publish", new_callable=AsyncMock):
-            await ws.credit(user=user, amount=50.0,
+        with patch.object(eb.event_bus, "publish", new_callable=AsyncMock):
+            await ws.credit(db=db, user=user, amount=50.0,
                             card_token="tok_test", idempotency_key="key-1")
 
-        assert user.balance == 150.0
-        user.save.assert_awaited_once()
+        assert wallet.balance == 150.0
+        db.commit.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_debit_decreases_balance(self):
         import services.wallet_service as ws
         import services.event_bus as eb
 
-        mock_txn = MagicMock()
-        mock_txn.insert = AsyncMock()
-
+        db, wallet = self._mock_db_with_wallet(200.0)
         user = MagicMock()
         user.id = "user456"
-        user.balance = 200.0
-        user.save = AsyncMock()
 
-        with patch("services.wallet_service.models.Transaction", return_value=mock_txn), \
-             patch.object(eb.event_bus, "publish", new_callable=AsyncMock):
-            await ws.debit(user=user, amount=75.0, card_token="tok_test")
+        with patch.object(eb.event_bus, "publish", new_callable=AsyncMock):
+            await ws.debit(db=db, user=user, amount=75.0, card_token="tok_test")
 
-        assert user.balance == 125.0
-        user.save.assert_awaited_once()
+        assert wallet.balance == 125.0
+        db.commit.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_debit_cannot_go_negative(self):
@@ -200,18 +208,13 @@ class TestWalletServiceLogic:
         import services.wallet_service as ws
         import services.event_bus as eb
 
-        mock_txn = MagicMock()
-        mock_txn.insert = AsyncMock()
-
+        db, wallet = self._mock_db_with_wallet(10.0)
         user = MagicMock()
         user.id = "user789"
-        user.balance = 10.0
-        user.save = AsyncMock()
 
-        with patch("services.wallet_service.models.Transaction", return_value=mock_txn), \
-             patch.object(eb.event_bus, "publish", new_callable=AsyncMock):
+        with patch.object(eb.event_bus, "publish", new_callable=AsyncMock):
             with pytest.raises(Exception):
-                await ws.debit(user=user, amount=100.0, card_token="tok_test")
+                await ws.debit(db=db, user=user, amount=100.0, card_token="tok_test")
 
 
 # ── Cache module ──────────────────────────────────────────────────────────────

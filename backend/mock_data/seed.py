@@ -5,6 +5,9 @@ Bu fayl ishlab chiqarish (production) kodiga hech qachon import qilinmasin.
 Faqat routers/dev.py orqali chaqiriladi.
 """
 
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 import models
 from core.security import get_password_hash
 from core.encryption import encrypt, hmac_hash
@@ -91,64 +94,64 @@ def build_products(sellers: list, cats: dict) -> list[dict]:
     )
     return [
         # seller1 — sabzavot
-        dict(seller_id=str(s1.id), category_id=str(veg.id),
-             name="Organik Pomidor", price=4.99, unit="kg",
+        dict(seller_id=s1.id, category_id=veg.id,
+             title="Organik Pomidor", b2c_price=4.99, unit="kg",
              image="https://images.unsplash.com/photo-1546470427-227e99f9a46e?w=800",
-             description="Toza organik pomidor. Kimyosiz, ferma mahsuloti.",
+             description="Toza organik pomidor. Kimyosiz, ferma mahsuloti.", stock=100,
              rating=4.8, review_count=3, views=210, sales=85),
-        dict(seller_id=str(s1.id), category_id=str(veg.id),
-             name="Bodring (toza)", price=2.50, unit="kg",
+        dict(seller_id=s1.id, category_id=veg.id,
+             title="Bodring (toza)", b2c_price=2.50, unit="kg",
              image="https://images.unsplash.com/photo-1568584711271-6c929fb49b60?w=800",
-             description="Issiqxonada yetishtirilgan bodring. Har kuni yangi.",
+             description="Issiqxonada yetishtirilgan bodring. Har kuni yangi.", stock=100,
              rating=4.6, review_count=2, views=140, sales=60),
-        dict(seller_id=str(s1.id), category_id=str(veg.id),
-             name="Qizil Qalampir", price=5.50, unit="kg",
+        dict(seller_id=s1.id, category_id=veg.id,
+             title="Qizil Qalampir", b2c_price=5.50, unit="kg",
              image="https://images.unsplash.com/photo-1563565375-f3fdfdbefa83?w=800",
-             description="Mazali va vitaminga boy qizil qalampir.",
+             description="Mazali va vitaminga boy qizil qalampir.", stock=100,
              rating=4.7, review_count=1, views=90, sales=35),
         # seller2 — meva
-        dict(seller_id=str(s2.id), category_id=str(fruit.id),
-             name="Samarqand Olma", price=3.20, unit="kg",
+        dict(seller_id=s2.id, category_id=fruit.id,
+             title="Samarqand Olma", b2c_price=3.20, unit="kg",
              image="https://images.unsplash.com/photo-1567306226416-28f0efdc88ce?w=800",
-             description="Samarqandning mashhur mahalliy olmasi. Shirin va xushbo'y.",
+             description="Samarqandning mashhur mahalliy olmasi. Shirin va xushbo'y.", stock=100,
              rating=3.5, review_count=2, views=100, sales=38),
-        dict(seller_id=str(s2.id), category_id=str(fruit.id),
-             name="Uzum (Toʻytepa)", price=6.80, unit="kg",
+        dict(seller_id=s2.id, category_id=fruit.id,
+             title="Uzum (Toʻytepa)", b2c_price=6.80, unit="kg",
              image="https://images.unsplash.com/photo-1537640538966-79f369143f8f?w=800",
-             description="To'ytepa toʻq qizil uzumi. Juda shirin.",
+             description="To'ytepa toʻq qizil uzumi. Juda shirin.", stock=100,
              rating=3.8, review_count=1, views=75, sales=22),
         # seller3 — sut
-        dict(seller_id=str(s3.id), category_id=str(dairy.id),
-             name="Tabiiy Qatiq", price=3.50, unit="litr",
+        dict(seller_id=s3.id, category_id=dairy.id,
+             title="Tabiiy Qatiq", b2c_price=3.50, unit="litr",
              image="https://images.unsplash.com/photo-1563636619-e9143da7973b?w=800",
-             description="Tabiiy sigir sutidan tayyorlangan qalin qatiq.",
+             description="Tabiiy sigir sutidan tayyorlangan qalin qatiq.", stock=100,
              rating=4.9, review_count=4, views=180, sales=95),
-        dict(seller_id=str(s3.id), category_id=str(dairy.id),
-             name="Pishloq (Suluguni)", price=12.00, unit="kg",
+        dict(seller_id=s3.id, category_id=dairy.id,
+             title="Pishloq (Suluguni)", b2c_price=12.00, unit="kg",
              image="https://images.unsplash.com/photo-1486297678162-eb2a19b0a32d?w=800",
-             description="Farg'ona usulida tayyorlangan suluguni pishloq.",
+             description="Farg'ona usulida tayyorlangan suluguni pishloq.", stock=100,
              rating=4.5, review_count=2, views=120, sales=48),
         # seller4 — don
-        dict(seller_id=str(s4.id), category_id=str(grain.id),
-             name="Bug'doy Uni (1-nav)", price=1.20, unit="kg",
+        dict(seller_id=s4.id, category_id=grain.id,
+             title="Bug'doy Uni (1-nav)", b2c_price=1.20, unit="kg",
              image="https://images.unsplash.com/photo-1509440159596-0249088772ff?w=800",
-             description="Toza 1-nav bug'doy uni. Non pishirish uchun ideal.",
+             description="Toza 1-nav bug'doy uni. Non pishirish uchun ideal.", stock=100,
              rating=4.3, review_count=2, views=160, sales=200),
-        dict(seller_id=str(s4.id), category_id=str(grain.id),
-             name="Guruch (Devzira)", price=4.50, unit="kg",
+        dict(seller_id=s4.id, category_id=grain.id,
+             title="Guruch (Devzira)", b2c_price=4.50, unit="kg",
              image="https://images.unsplash.com/photo-1586201375761-83865001e31c?w=800",
-             description="Haqiqiy Qo'qon devzira guruchi. Osh uchun eng yaxshisi.",
+             description="Haqiqiy Qo'qon devzira guruchi. Osh uchun eng yaxshisi.", stock=100,
              rating=4.1, review_count=1, views=130, sales=110),
         # seller5 — go'sht
-        dict(seller_id=str(s5.id), category_id=str(meat.id),
-             name="Mol Go'shti", price=15.00, unit="kg",
+        dict(seller_id=s5.id, category_id=meat.id,
+             title="Mol Go'shti", b2c_price=15.00, unit="kg",
              image="https://images.unsplash.com/photo-1607623814075-e51df1bdc82f?w=800",
-             description="Yangi mol go'shti. Bugun so'yilgan.",
+             description="Yangi mol go'shti. Bugun so'yilgan.", stock=100,
              rating=3.0, review_count=2, views=85, sales=30),
-        dict(seller_id=str(s5.id), category_id=str(meat.id),
-             name="Qo'y Go'shti", price=18.00, unit="kg",
+        dict(seller_id=s5.id, category_id=meat.id,
+             title="Qo'y Go'shti", b2c_price=18.00, unit="kg",
              image="https://images.unsplash.com/photo-1529692236671-f1f6cf9683ba?w=800",
-             description="Tog' qo'yining go'shti. Toza va yog'li.",
+             description="Tog' qo'yining go'shti. Toza va yog'li.", stock=100,
              rating=2.8, review_count=1, views=60, sales=15),
     ]
 
@@ -164,8 +167,8 @@ def build_orders(buyers: list, sellers: list, prods: list) -> list[dict]:
     b1, b2, b3 = buyers
     s1, s2, s3, s4, s5 = sellers
 
-    def p(name):
-        return next(x for x in prods if x.name == name)
+    def p(title):
+        return next(x for x in prods if x.title == title)
 
     return [
         # buyer1 — seller1
@@ -222,8 +225,8 @@ def build_reviews(buyers: list, sellers: list, prods: list, orders: list) -> lis
     b1, b2, b3 = buyers
     s1, s2, s3, s4, s5 = sellers
 
-    def p(name):
-        return next(x for x in prods if x.name == name)
+    def p(title):
+        return next(x for x in prods if x.title == title)
 
     return [
         # seller1
@@ -240,9 +243,6 @@ def build_reviews(buyers: list, sellers: list, prods: list, orders: list) -> lis
         dict(reviewer=b1, seller=s2, order=orders[3],
              product=p("Samarqand Olma"), rating=3,
              comment="Olma shirin, lekin yetkazib berish kech bo'ldi. Keyingi safar tezroq bo'lsin."),
-        dict(reviewer=b1, seller=s2, order=orders[3],
-             product=p("Samarqand Olma"), rating=4,
-             comment="Sifat yaxshi, narx ham mos. Yana buyurtma beraman."),
         # seller3
         dict(reviewer=b2, seller=s3, order=orders[5],
              product=p("Tabiiy Qatiq"), rating=5,
@@ -250,13 +250,6 @@ def build_reviews(buyers: list, sellers: list, prods: list, orders: list) -> lis
         dict(reviewer=b2, seller=s3, order=orders[6],
              product=p("Tabiiy Qatiq"), rating=5,
              comment="Sifat doimo yuqori. Ishonchli sotuvchi."),
-        dict(reviewer=b2, seller=s3, order=orders[5],
-             product=p("Pishloq (Suluguni)"), rating=4,
-             comment="Pishloq juda mazali, lekin narxi biroz qimmat."),
-        dict(reviewer=b2, seller=s3, order=orders[8],
-             product=p("Guruch (Devzira)"), rating=4,
-             comment="Devzira guruch ajoyib! Osh juda mazali chiqdi."),
-        # seller4
         dict(reviewer=b2, seller=s4, order=orders[8],
              product=p("Bug'doy Uni (1-nav)"), rating=4,
              comment="Un sifati yaxshi, narxi ham qo'lbola. Yana olaman."),
@@ -267,20 +260,18 @@ def build_reviews(buyers: list, sellers: list, prods: list, orders: list) -> lis
         dict(reviewer=b3, seller=s5, order=orders[10],
              product=p("Mol Go'shti"), rating=3,
              comment="Go'sht yaxshi, lekin yetkazib berish kech keldi va qadoqlash yomon edi."),
-        dict(reviewer=b3, seller=s5, order=orders[10],
-             product=p("Mol Go'shti"), rating=3,
-             comment="O'rtacha sifat. Narxga yarasha deyish mumkin."),
     ]
 
 
 # ── Asosiy seed funksiyasi ────────────────────────────────────────────────────
 
-async def run_seed() -> dict:
+async def run_seed(db: AsyncSession) -> dict:
     """
     Barcha mock ma'lumotlarni bazaga yozadi.
     Agar allaqachon yozilgan bo'lsa, hech narsa qilmaydi.
     """
-    if await models.User.find_one(models.User.phone_hash == hmac_hash("seller1")):
+    result = await db.execute(select(models.User).where(models.User.phone_hash == hmac_hash("seller1")))
+    if result.scalar_one_or_none():
         return {"message": "Data already exists"}
 
     # 1. Kategoriyalar
@@ -288,71 +279,75 @@ async def run_seed() -> dict:
     cat_by_name = {}
     for c in CATEGORIES:
         obj = models.Category(**c)
-        await obj.insert()
+        db.add(obj)
         cat_objects.append(obj)
         cat_by_name[c["name"]] = obj
+    await db.flush()
 
     # 2. Sotuvchilar
     seller_objects = []
     for s in SELLERS:
         obj = make_user(**s)
-        await obj.insert()
+        db.add(obj)
         seller_objects.append(obj)
+    await db.flush()
 
     # 3. Xaridorlar
     buyer_objects = []
     for b in BUYERS:
         obj = make_user(**b)
-        await obj.insert()
+        db.add(obj)
         buyer_objects.append(obj)
+    await db.flush()
 
     # 4. Mahsulotlar
     prod_objects = []
     for d in build_products(seller_objects, cat_by_name):
         obj = models.Product(**d)
-        await obj.insert()
+        db.add(obj)
         prod_objects.append(obj)
+    await db.flush()
 
     # 5. Buyurtmalar
     order_objects = []
     for od in build_orders(buyer_objects, seller_objects, prod_objects):
-        total = sum(pr.price * q for pr, q in od["items"])
+        total = sum(pr.b2c_price * q for pr, q in od["items"])
         obj = models.Order(
-            buyer_id=str(od["buyer"].id),
-            seller_id=str(od["seller"].id),
+            buyer_id=od["buyer"].id,
+            seller_id=od["seller"].id,
             status=od["status"],
             total=total,
             delivery_method=od["delivery"],
             items=[
                 models.OrderItem(
-                    product_id=str(pr.id),
+                    product_id=pr.id,
                     quantity=q,
-                    price_at_purchase=pr.price,
+                    unit_price=pr.b2c_price,
+                    product_name=pr.title,
                 )
                 for pr, q in od["items"]
             ],
         )
-        await obj.insert()
+        db.add(obj)
         order_objects.append(obj)
+    await db.flush()
 
     # 6. Sharhlar
     review_count = 0
-    used_order_ids: set[str] = set()
-    for i, rd in enumerate(build_reviews(buyer_objects, seller_objects, prod_objects, order_objects)):
-        oid = str(rd["order"].id)
-        unique_oid = oid if oid not in used_order_ids else f"{oid}_{i}"
-        used_order_ids.add(unique_oid)
+    for rd in build_reviews(buyer_objects, seller_objects, prod_objects, order_objects):
         obj = models.Review(
-            reviewer_id=str(rd["reviewer"].id),
-            seller_id=str(rd["seller"].id),
-            order_id=unique_oid,
-            product_id=str(rd["product"].id),
+            reviewer_id=rd["reviewer"].id,
+            seller_id=rd["seller"].id,
+            order_id=rd["order"].id,
+            product_id=rd["product"].id,
             rating=rd["rating"],
             comment=rd["comment"],
             is_verified_purchase=True,
         )
-        await obj.insert()
+        db.add(obj)
         review_count += 1
+
+    await db.commit()
 
     return {
         "message": "Seed data inserted",

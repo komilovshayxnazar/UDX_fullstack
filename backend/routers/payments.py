@@ -13,15 +13,29 @@ Features implemented:
 import secrets
 import uuid
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 import models
 import schemas
+from db import get_db
 from core.dependencies import get_current_user
 from core.rate_limiter import limiter
 from services import payment_service, wallet_service
 from services.audit_service import log as audit_log
 
 router = APIRouter(prefix="/payments", tags=["payments"])
+
+
+async def _get_card(db: AsyncSession, user_id, card_id: str) -> models.PaymentCard | None:
+    try:
+        cid = uuid.UUID(card_id)
+    except ValueError:
+        return None
+    result = await db.execute(
+        select(models.PaymentCard).where(models.PaymentCard.id == cid, models.PaymentCard.user_id == user_id)
+    )
+    return result.scalar_one_or_none()
 
 
 # ── Mock gateway tokenization ──────────────────────────────────────────────────
@@ -55,6 +69,7 @@ async def deposit(
     body: schemas.TransactionRequest,
     idempotency_key: str = Header(default=None, alias="X-Idempotency-Key"),
     current_user: models.User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Top-up balance.
@@ -69,12 +84,13 @@ async def deposit(
     if body.amount <= 0:
         raise HTTPException(status_code=400, detail="Amount must be positive")
 
-    card = next((c for c in current_user.payment_cards if c.id == body.card_id), None)
+    card = await _get_card(db, current_user.id, body.card_id)
     if not card:
         raise HTTPException(status_code=400, detail="Card not found. Add a payment card first.")
 
     # payment_service handles: idempotency check + gateway retry + audit log + events
     result = await payment_service.charge_card(
+        db,
         user=current_user,
         card=card,
         amount=body.amount,
@@ -88,13 +104,15 @@ async def deposit(
     # Skip credit on idempotent replay — balance must not increase again
     if not result.get("_replay"):
         await wallet_service.credit(
+            db,
             user=current_user,
             amount=body.amount,
             card_token=card.card_token,
             idempotency_key=idempotency_key,
         )
 
-    return await models.User.get(current_user.id)
+    balance = await wallet_service.get_balance(db, current_user)
+    return schemas.user_to_schema(current_user, balance=balance)
 
 
 # ── Withdraw ───────────────────────────────────────────────────────────────────
@@ -105,47 +123,59 @@ async def withdraw(
     request: Request,
     body: schemas.TransactionRequest,
     current_user: models.User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ):
     if body.amount <= 0:
         raise HTTPException(status_code=400, detail="Amount must be positive")
-    if current_user.balance < body.amount:
+
+    balance = await wallet_service.get_balance(db, current_user)
+    if balance < body.amount:
         raise HTTPException(status_code=400, detail="Insufficient funds")
 
-    card = next((c for c in current_user.payment_cards if c.id == body.card_id), None)
+    card = await _get_card(db, current_user.id, body.card_id)
     if not card:
         raise HTTPException(status_code=400, detail="Card not found.")
 
     await wallet_service.debit(
+        db,
         user=current_user,
         amount=body.amount,
         card_token=card.card_token,
     )
 
     await audit_log(
+        db,
         user=current_user,
         action=models.AuditAction.withdraw,
         detail={"amount": body.amount, "card_last4": card.last4},
         request=request,
     )
 
-    return current_user
+    balance = await wallet_service.get_balance(db, current_user)
+    return schemas.user_to_schema(current_user, balance=balance)
 
 
 # ── Transaction history ────────────────────────────────────────────────────────
 
 @router.get("/transactions", response_model=list[schemas.TransactionOut])
-async def get_transactions(current_user: models.User = Depends(get_current_user)):
-    txns = await models.Transaction.find(
-        models.Transaction.user_id == str(current_user.id)
-    ).sort(-models.Transaction.created_at).to_list()
+async def get_transactions(
+    current_user: models.User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(models.Payment)
+        .where(models.Payment.user_id == current_user.id, models.Payment.type.is_not(None))
+        .order_by(models.Payment.created_at.desc())
+    )
+    txns = result.scalars().all()
 
     return [
         schemas.TransactionOut(
             id=str(t.id),
             amount=t.amount,
-            type=t.type.value,
+            type=t.type.value if t.type else "",
             status=t.status.value,
-            transaction_id=t.transaction_id,
+            transaction_id=t.merchant_trans_id or str(t.id),
             created_at=t.created_at.isoformat()
         )
         for t in txns
@@ -155,11 +185,18 @@ async def get_transactions(current_user: models.User = Depends(get_current_user)
 # ── Audit log (admin / user self-service) ─────────────────────────────────────
 
 @router.get("/audit", response_model=list[schemas.AuditLogOut])
-async def get_audit_log(current_user: models.User = Depends(get_current_user)):
+async def get_audit_log(
+    current_user: models.User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
     """Returns the last 50 audit entries for the current user."""
-    entries = await models.AuditLog.find(
-        models.AuditLog.user_id == str(current_user.id)
-    ).sort(-models.AuditLog.created_at).limit(50).to_list()
+    result = await db.execute(
+        select(models.AuditLog)
+        .where(models.AuditLog.actor_id == current_user.id)
+        .order_by(models.AuditLog.created_at.desc())
+        .limit(50)
+    )
+    entries = result.scalars().all()
 
     return [
         schemas.AuditLogOut(

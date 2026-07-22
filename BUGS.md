@@ -1,5 +1,11 @@
 # UDX — Production Readiness Audit
 
+> **Stale notice:** this audit predates the backend's migration from
+> MongoDB/Beanie to PostgreSQL/SQLAlchemy+Alembic and the removal of
+> Neo4j. Items referencing Mongo, Beanie, or Neo4j describe the
+> codebase as it was at scan time — re-check each one against the
+> current code before acting on it; some are already fixed.
+
 Codebase scanned: `UDX_fullstack/` (React+Vite frontend, FastAPI+MongoDB
 backend at `backend/`, Android Compose client at
 `android_app/app/`, integration tests at `tests/`).

@@ -1,7 +1,4 @@
-// Package server hosts the gRPC IngestService implementation and the
-// worker pool that fans compressed batches out to storage. The structure
-// follows the workflow's stage 3:
-//
+// Package server hosts the gRPC IngestService implementation and the worker pool that fans compressed batches out to storage. The structure follows the workflow's stage 3:
 //   - sync.Pool recycles the per-batch decompressed byte buffers
 //   - a fixed worker pool decompresses and decodes incoming LogBatches
 //   - a single internal channel feeds the storage engine
@@ -19,10 +16,7 @@ import (
 	"github.com/shayxnazar/logagg/internal/logline"
 )
 
-// Sink is the contract between the gRPC handler and the storage engine. The
-// server doesn't know about WAL, chunks, or index — it just hands decoded
-// log lines to whatever Sink the caller provides. This keeps the package
-// unit-testable and the dependency graph one-way.
+// Sink is the contract between the gRPC handler and the storage engine. The server doesn't know about WAL, chunks, or index — it just hands decoded log lines to whatever Sink the caller provides. This keeps the package  unit-testable and the dependency graph one-way.
 type Sink interface {
 	Append(ctx context.Context, lines []logline.LogLine) error
 }
@@ -38,9 +32,7 @@ type IngestService struct {
 	wg       sync.WaitGroup
 }
 
-// New constructs an IngestService and starts its worker pool. The worker
-// count defaults to NumCPU*2 and the internal channel is buffered to absorb
-// bursty ingest.
+// New constructs an IngestService and starts its worker pool. The worker count defaults to NumCPU*2 and the internal channel is buffered to absorb bursty ingest.
 func New(sink Sink) *IngestService {
 	return NewWithWorkers(sink, runtime.NumCPU()*2, 65536)
 }
@@ -73,9 +65,7 @@ func (s *IngestService) Close() {
 	s.wg.Wait()
 }
 
-// Stream is the client-streaming RPC entry point. Each Recv pulls a
-// compressed batch, decompresses it, and forwards the decoded lines to the
-// worker pool. The first error returns the Ack with the error string.
+// Stream is the client-streaming RPC entry point. Each Recv pulls a compressed batch, decompresses it, and forwards the decoded lines to the worker pool. The first error returns the Ack with the error string.
 func (s *IngestService) Stream(stream pb.IngestService_StreamServer) error {
 	var total uint64
 	ctx := stream.Context()

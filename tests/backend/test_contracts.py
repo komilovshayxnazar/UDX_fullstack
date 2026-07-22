@@ -52,7 +52,7 @@ def contract(client, seller, buyer):
     resp = client.post("/contracts/", json={
         "buyer_id": buyer["id"],
         "title": "QA Supply Agreement",
-        "description": "Automated test contract",
+        "terms": "Automated test contract",
         "amount": 500.0,
     }, headers=seller["headers"])
     assert resp.status_code == 200, f"Contract creation failed: {resp.text}"

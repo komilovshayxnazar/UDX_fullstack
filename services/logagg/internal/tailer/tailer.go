@@ -1,7 +1,4 @@
-// Package tailer implements the OS-file-descriptor based log tail described
-// in stage 2 of the workflow. We own the FD: open the file once, stat it
-// periodically for size growth, and Read from the last offset. No external
-// "tail" binary is invoked.
+// Package tailer implements the OS-file-descriptor based log tail described in stage 2 of the workflow. We own the FD: open the file once, stat it periodically for size growth, and Read from the last offset. No external "tail" binary is invoked.
 package tailer
 
 import (
@@ -17,9 +14,7 @@ import (
 	"github.com/shayxnazar/logagg/internal/logline"
 )
 
-// Tailer reads newline-delimited JSON LogLine records from a file and pushes
-// them on the out channel. It survives truncation/replacement (logrotate)
-// by re-opening the file and resetting the read offset.
+// Tailer reads newline-delimited JSON LogLine records from a file and pushes them on the out channel. It survives truncation/replacement (logrotate) by re-opening the file and resetting the read offset.
 type Tailer struct {
 	path   string
 	out    chan<- logline.LogLine
@@ -28,8 +23,7 @@ type Tailer struct {
 	skip   atomic.Int64
 }
 
-// New constructs a Tailer. poll sets how often we stat the file for new
-// bytes; 250ms is a sensible default for production.
+// New constructs a Tailer. poll sets how often we stat the file for new bytes; 250ms is a sensible default for production.
 func New(path string, out chan<- logline.LogLine, poll time.Duration) *Tailer {
 	if poll <= 0 {
 		poll = 250 * time.Millisecond

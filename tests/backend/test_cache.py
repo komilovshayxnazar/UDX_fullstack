@@ -158,9 +158,9 @@ class TestHealthEndpoint:
         assert "status" in body
         assert "services" in body
 
-    def test_health_includes_mongodb(self, client):
+    def test_health_includes_postgres(self, client):
         services = client.get("/health").json()["services"]
-        assert "mongodb" in services
+        assert "postgres" in services
 
     def test_health_includes_redis(self, client):
         services = client.get("/health").json()["services"]
@@ -171,7 +171,7 @@ class TestHealthEndpoint:
         assert "storage" in services
         assert services["storage"] in ("r2", "local")
 
-    def test_mongodb_is_ok(self, client):
-        """Backend ishlayotgan bo'lsa MongoDB ham ishlaydi."""
+    def test_postgres_is_ok(self, client):
+        """Backend ishlayotgan bo'lsa Postgres ham ishlaydi."""
         services = client.get("/health").json()["services"]
-        assert services["mongodb"] == "ok"
+        assert services["postgres"] == "ok"

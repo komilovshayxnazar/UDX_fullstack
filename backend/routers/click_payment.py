@@ -29,9 +29,12 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import JSONResponse
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 import models
 import schemas
+from db import get_db
 from core.dependencies import get_current_user
 from services import wallet_service
 
@@ -93,6 +96,7 @@ def _err(code: int, note: str, **extra) -> JSONResponse:
 async def create_click_payment(
     body: schemas.ClickPaymentRequest,
     current_user: models.User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Foydalanuvchi balansi to'ldirish uchun Click to'lov URL'ini yaratadi.
@@ -103,12 +107,16 @@ async def create_click_payment(
 
     merchant_trans_id = uuid.uuid4().hex
 
-    txn = models.ClickTransaction(
-        user_id=str(current_user.id),
+    txn = models.Payment(
+        user_id=current_user.id,
+        method=models.PaymentMethod.click,
+        type=models.TransactionType.deposit,
         amount=body.amount,
+        status=models.PaymentStatus.pending,
         merchant_trans_id=merchant_trans_id,
     )
-    await txn.insert()
+    db.add(txn)
+    await db.commit()
 
     pay_url = (
         f"https://my.click.uz/services/pay"
@@ -139,6 +147,7 @@ async def click_prepare(
     error_note: str = Form(...),
     sign_time: str = Form(...),
     sign_string: str = Form(...),
+    db: AsyncSession = Depends(get_db),
 ):
     # 1. Imzo tekshiruvi
     if not _verify_prepare_sign(
@@ -153,20 +162,19 @@ async def click_prepare(
                     click_trans_id=click_trans_id, merchant_trans_id=merchant_trans_id)
 
     # 3. Tranzaksiyani topish
-    txn = await models.ClickTransaction.find_one(
-        models.ClickTransaction.merchant_trans_id == merchant_trans_id
-    )
+    result = await db.execute(select(models.Payment).where(models.Payment.merchant_trans_id == merchant_trans_id))
+    txn = result.scalar_one_or_none()
     if not txn:
         return _err(-2, "ORDER_NOT_FOUND",
                     click_trans_id=click_trans_id, merchant_trans_id=merchant_trans_id)
 
     # 4. Allaqachon to'langan
-    if txn.status == models.ClickTxnStatus.completed:
+    if txn.status == models.PaymentStatus.completed:
         return _err(-3, "ALREADY_PAID",
                     click_trans_id=click_trans_id, merchant_trans_id=merchant_trans_id)
 
     # 5. Bekor qilingan
-    if txn.status == models.ClickTxnStatus.cancelled:
+    if txn.status == models.PaymentStatus.cancelled:
         return _err(-6, "TRANSACTION_CANCELLED",
                     click_trans_id=click_trans_id, merchant_trans_id=merchant_trans_id)
 
@@ -176,11 +184,11 @@ async def click_prepare(
                     click_trans_id=click_trans_id, merchant_trans_id=merchant_trans_id)
 
     # 7. Prepare holatiga o'tkazish
-    txn.status = models.ClickTxnStatus.prepared
+    txn.status = models.PaymentStatus.prepared
     txn.click_trans_id = click_trans_id
     txn.click_paydoc_id = click_paydoc_id
     txn.updated_at = datetime.now(timezone.utc)
-    await txn.save()
+    await db.commit()
 
     return JSONResponse({
         "click_trans_id": click_trans_id,
@@ -206,6 +214,7 @@ async def click_complete(
     error_note: str = Form(...),
     sign_time: str = Form(...),
     sign_string: str = Form(...),
+    db: AsyncSession = Depends(get_db),
 ):
     # 1. Imzo tekshiruvi
     if not _verify_complete_sign(
@@ -221,28 +230,27 @@ async def click_complete(
                     click_trans_id=click_trans_id, merchant_trans_id=merchant_trans_id)
 
     # 3. Tranzaksiyani topish
-    txn = await models.ClickTransaction.find_one(
-        models.ClickTransaction.merchant_trans_id == merchant_trans_id
-    )
+    result = await db.execute(select(models.Payment).where(models.Payment.merchant_trans_id == merchant_trans_id))
+    txn = result.scalar_one_or_none()
     if not txn:
         return _err(-2, "ORDER_NOT_FOUND",
                     click_trans_id=click_trans_id, merchant_trans_id=merchant_trans_id)
 
     # 4. Click tomonidan xato bo'lsa — bekor qilish
     if int(error) < 0:
-        txn.status = models.ClickTxnStatus.cancelled
+        txn.status = models.PaymentStatus.cancelled
         txn.updated_at = datetime.now(timezone.utc)
-        await txn.save()
+        await db.commit()
         return _err(-6, "TRANSACTION_CANCELLED",
                     click_trans_id=click_trans_id, merchant_trans_id=merchant_trans_id)
 
     # 5. Allaqachon to'langan
-    if txn.status == models.ClickTxnStatus.completed:
+    if txn.status == models.PaymentStatus.completed:
         return _err(-3, "ALREADY_PAID",
                     click_trans_id=click_trans_id, merchant_trans_id=merchant_trans_id)
 
     # 6. Prepare bosqichi o'tmagan bo'lsa
-    if txn.status != models.ClickTxnStatus.prepared:
+    if txn.status != models.PaymentStatus.prepared:
         return _err(-4, "UNABLE_PERFORM_OPERATION",
                     click_trans_id=click_trans_id, merchant_trans_id=merchant_trans_id)
 
@@ -252,23 +260,25 @@ async def click_complete(
                     click_trans_id=click_trans_id, merchant_trans_id=merchant_trans_id)
 
     # 8. Foydalanuvchini topish
-    user = await models.User.get(txn.user_id)
+    user = await db.get(models.User, txn.user_id) if txn.user_id else None
     if not user:
         return _err(-5, "USER_DOES_NOT_EXIST",
                     click_trans_id=click_trans_id, merchant_trans_id=merchant_trans_id)
 
     # 9. Balansni oshirish
     await wallet_service.credit(
+        db,
         user=user,
         amount=txn.amount,
         card_token=f"click_{click_trans_id}",
         idempotency_key=merchant_trans_id,
+        method=models.PaymentMethod.click,
     )
 
     # 10. Tranzaksiyani yakunlash
-    txn.status = models.ClickTxnStatus.completed
+    txn.status = models.PaymentStatus.completed
     txn.updated_at = datetime.now(timezone.utc)
-    await txn.save()
+    await db.commit()
 
     return JSONResponse({
         "click_trans_id": click_trans_id,

@@ -78,13 +78,13 @@ class TestHealthCheck:
 
     def test_health_includes_all_services(self, client):
         services = client.get("/health").json()["services"]
-        assert "mongodb" in services
+        assert "postgres" in services
         assert "redis" in services
         assert "storage" in services
 
-    def test_mongodb_healthy(self, client):
+    def test_postgres_healthy(self, client):
         services = client.get("/health").json()["services"]
-        assert services["mongodb"] == "ok"
+        assert services["postgres"] == "ok"
 
     def test_health_is_json(self, client):
         resp = client.get("/health")
@@ -221,12 +221,15 @@ class TestInputValidation:
         assert resp.status_code == 200
 
 
-# ── 4. NoSQL injection ────────────────────────────────────────────────────────
+# ── 4. Injection payloads in string fields ─────────────────────────────────────
 
 class TestNoSQLInjection:
     """
-    MongoDB operator injection urinishlari.
-    Pydantic str validatsiyasi ularni 422 bilan bloklashi kerak.
+    NoSQL-operator-shaped / raw-SQL-shaped strings sent through JSON string
+    fields. Now that the backend is Postgres + SQLAlchemy (parameterized
+    queries, no raw query interpolation), these strings must simply be
+    treated as inert text — Pydantic str validation stores or 422s them,
+    never interprets them as query operators.
     """
 
     def test_login_operator_injection_blocked(self, client):
@@ -239,7 +242,7 @@ class TestNoSQLInjection:
         assert resp.status_code in (401, 422)
 
     def test_product_name_injection_blocked(self, client, seller):
-        """Mahsulot nomida MongoDB operator → saqlanadi yoki 422."""
+        """Mahsulot nomida operator-shaped satr → saqlanadi yoki 422."""
         cats = client.get("/categories/").json()
         resp = client.post("/products/", json={
             "name": '{"$where": "sleep(1000)"}',

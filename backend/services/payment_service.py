@@ -3,9 +3,16 @@ payment_service.py — Payment microservice logic.
 
 Responsible for:
   - Calling the payment gateway (with retry + exponential backoff)
-  - Idempotency key enforcement (no double charges)
+  - Idempotency key enforcement (no double charges) — enforced directly
+    against `payments.idempotency_key` (unique) rather than a separate
+    generic table, since a card charge always produces a Payment row.
   - Audit logging every payment action
   - Publishing payment events
+
+`get_idempotency_record` / `save_idempotency_record` below still operate on
+the standalone `idempotency_keys` table — that one is kept for generic,
+non-payment idempotent actions (e.g. order creation in routers/orders.py)
+that don't naturally produce a Payment row.
 
 In a full microservices setup this is payment-service (separate process).
 """
@@ -15,10 +22,10 @@ import json
 import logging
 import os
 import secrets
-import uuid
-from datetime import datetime, timezone
 
 from fastapi import HTTPException, Request
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 import models
 from services.event_bus import event_bus
@@ -86,29 +93,34 @@ async def gateway_charge(card_token: str, amount: float) -> dict:
     raise HTTPException(status_code=502, detail="Payment gateway unavailable. Please try again.")
 
 
-# ── Idempotency ────────────────────────────────────────────────────────────────
-async def get_idempotency_record(key: str, user_id: str) -> models.IdempotencyKey | None:
-    return await models.IdempotencyKey.find_one(
-        models.IdempotencyKey.key == key,
-        models.IdempotencyKey.user_id == user_id
+# ── Generic (non-payment) idempotency — orders.py order-creation dedup ────────
+async def get_idempotency_record(db: AsyncSession, key: str, user_id) -> models.IdempotencyKey | None:
+    result = await db.execute(
+        select(models.IdempotencyKey).where(
+            models.IdempotencyKey.key == key,
+            models.IdempotencyKey.user_id == user_id,
+        )
     )
+    return result.scalar_one_or_none()
 
 
-async def save_idempotency_record(key: str, user_id: str, status: int, body: dict):
+async def save_idempotency_record(db: AsyncSession, key: str, user_id, status: int, body: dict):
     record = models.IdempotencyKey(
         key=key,
         user_id=user_id,
         response_status=status,
-        response_body=json.dumps(body)
+        response_body=json.dumps(body),
     )
+    db.add(record)
     try:
-        await record.insert()
+        await db.commit()
     except Exception:
-        pass   # unique index violation — another concurrent request already saved it
+        await db.rollback()   # unique index violation — another concurrent request already saved it
 
 
 # ── Audit logging ──────────────────────────────────────────────────────────────
 async def audit(
+    db: AsyncSession,
     user: models.User,
     action: models.AuditAction,
     detail: dict,
@@ -118,18 +130,20 @@ async def audit(
 ):
     ip = request.headers.get("X-Forwarded-For", request.client.host if request.client else "unknown")
     log = models.AuditLog(
-        user_id=str(user.id),
+        actor_id=user.id,
         action=action,
         detail=detail,
         ip_address=ip,
         success=success,
-        idempotency_key=idempotency_key
+        idempotency_key=idempotency_key,
     )
-    await log.insert()
+    db.add(log)
+    await db.flush()
 
 
 # ── High-level payment operations ─────────────────────────────────────────────
 async def charge_card(
+    db: AsyncSession,
     user: models.User,
     card: models.PaymentCard,
     amount: float,
@@ -138,54 +152,77 @@ async def charge_card(
 ) -> dict:
     """
     Full deposit flow:
-      1. Check idempotency key → return cached response if duplicate
+      1. Check idempotency key against `payments.idempotency_key` → return
+         cached response if duplicate
       2. Call gateway (with retry)
-      3. Write audit log
-      4. Publish event
-      5. Save idempotency result
+      3. Persist the charge attempt as a Payment row
+      4. Write audit log
+      5. Publish event
 
     Returns dict with `_replay=True` when the key was already processed so the
     caller knows to skip the balance credit step (preventing double credit).
     """
-    user_id = str(user.id)
+    user_id = user.id
 
     # 1. Idempotency check
-    existing = await get_idempotency_record(idempotency_key, user_id)
+    result = await db.execute(
+        select(models.Payment).where(
+            models.Payment.idempotency_key == idempotency_key,
+            models.Payment.user_id == user_id,
+        )
+    )
+    existing = result.scalar_one_or_none()
     if existing:
         logger.info(f"Idempotent replay for key={idempotency_key} user={user_id}")
-        cached = json.loads(existing.response_body)
-        cached["_replay"] = True
-        return cached
+        return {
+            "status": "success" if existing.status == models.PaymentStatus.success else "failed",
+            "transaction_id": existing.merchant_trans_id or str(existing.id),
+            "_replay": True,
+        }
 
     # 2. Gateway charge with retry
-    result = await gateway_charge(card.card_token, amount)
-    success = result["status"] == "success"
+    gateway_result = await gateway_charge(card.card_token, amount)
+    success = gateway_result["status"] == "success"
 
-    # 3. Audit log
+    # 3. Persist the charge attempt
+    payment = models.Payment(
+        user_id=user_id,
+        method=models.PaymentMethod.card,
+        type=models.TransactionType.deposit,
+        status=models.PaymentStatus.success if success else models.PaymentStatus.failed,
+        amount=amount,
+        idempotency_key=idempotency_key,
+        card_token=card.card_token,
+        merchant_trans_id=gateway_result.get("transaction_id") or None,
+    )
+    db.add(payment)
+    await db.flush()
+
+    # 4. Audit log
     await audit(
+        db,
         user=user,
         action=models.AuditAction.deposit,
         detail={
             "amount": amount,
             "card_last4": card.last4,
             "card_type": card.card_type,
-            "transaction_id": result.get("transaction_id"),
-            "gateway_status": result["status"],
+            "transaction_id": gateway_result.get("transaction_id"),
+            "gateway_status": gateway_result["status"],
         },
         request=request,
         success=success,
         idempotency_key=idempotency_key,
     )
 
-    # 4. Event
+    await db.commit()
+
+    # 5. Event
     await event_bus.publish("payment.charged", {
-        "user_id": user_id,
+        "user_id": str(user_id),
         "amount": amount,
-        "transaction_id": result.get("transaction_id"),
+        "transaction_id": gateway_result.get("transaction_id"),
         "success": success,
     })
 
-    # 5. Save idempotency result
-    await save_idempotency_record(idempotency_key, user_id, 200 if success else 402, result)
-
-    return result
+    return {"status": gateway_result["status"], "transaction_id": gateway_result.get("transaction_id")}

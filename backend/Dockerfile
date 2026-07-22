@@ -62,11 +62,9 @@ EXPOSE 8000
 
 ENTRYPOINT ["/usr/bin/tini", "--"]
 
+# Apply pending Alembic migrations before serving traffic — schema is
+# owned by Alembic, not app startup, so this runs once per container
+# start rather than racing across the 4 uvicorn workers below.
 # --proxy-headers so X-Forwarded-For / X-Forwarded-Proto from the
 # nginx front-end are trusted for logging + audit.
-CMD ["uvicorn", "main:app", \
-     "--host", "0.0.0.0", \
-     "--port", "8000", \
-     "--workers", "4", \
-     "--proxy-headers", \
-     "--forwarded-allow-ips", "*"]
+CMD ["sh", "-c", "alembic upgrade head && exec uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4 --proxy-headers --forwarded-allow-ips '*'"]

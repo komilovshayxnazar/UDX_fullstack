@@ -1,4 +1,4 @@
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, ConfigDict, field_validator
 from typing import Any, List, Optional, TYPE_CHECKING
 from datetime import datetime
 import enum
@@ -8,8 +8,12 @@ if TYPE_CHECKING:
     import models as _models
 
 
-def user_to_schema(user: "_models.User") -> "User":
-    """models.User → schemas.User (shifrlangan maydonlarni ochib beradi)."""
+def user_to_schema(user: "_models.User", balance: float = 0.0) -> "User":
+    """models.User → schemas.User (shifrlangan maydonlarni ochib beradi).
+
+    `balance` now lives on the `wallets` table (see services.wallet_service
+    .get_balance), so the caller must fetch it separately and pass it in.
+    """
     from core.encryption import decrypt
     return User(
         id=str(user.id),
@@ -19,22 +23,22 @@ def user_to_schema(user: "_models.User") -> "User":
         avatar=user.avatar,
         is_active=user.is_active,
         is_public=user.is_public,
-        balance=user.balance,
+        balance=balance,
         rating=user.rating,
     )
 
-class MongoBase(BaseModel):
-    """Barcha response schemalari uchun base class — ObjectId ni str ga o'giradi."""
+class ORMBase(BaseModel):
+    """Barcha response schemalari uchun base class — ORM obyektlaridan
+    to'g'ridan-to'g'ri serializatsiya qilish uchun (SQLAlchemy UUID -> str)."""
+    model_config = ConfigDict(from_attributes=True)
+
     @field_validator('*', mode='before')
     @classmethod
     def coerce_objectid(cls, v: Any) -> Any:
-        # bpy ObjectId yoki PydanticObjectId ni str ga o'giradi
-        if hasattr(v, '__class__') and v.__class__.__name__ in ('ObjectId', 'PydanticObjectId'):
+        # SQLAlchemy/asyncpg UUID (yoki eski ObjectId) ni str ga o'giradi
+        if hasattr(v, '__class__') and v.__class__.__name__ in ('ObjectId', 'PydanticObjectId', 'UUID'):
             return str(v)
         return v
-
-    class Config:
-        from_attributes = True
 
 # Enums (mirroring models)
 class UserRole(str, enum.Enum):
@@ -72,7 +76,7 @@ class ProductBase(BaseModel):
 class ProductCreate(ProductBase):
     pass
 
-class SellerPublic(MongoBase):
+class SellerPublic(ORMBase):
     id: str
     name: Optional[str] = None
     avatar: Optional[str] = None
@@ -81,7 +85,7 @@ class SellerPublic(MongoBase):
     is_online: bool = False
     is_verified: bool = False   # True if seller has TIN registered
 
-class Product(MongoBase, ProductBase):
+class Product(ORMBase, ProductBase):
     id: str
     seller_id: str
     rating: float
@@ -97,7 +101,7 @@ class PriceHistoryBase(BaseModel):
 class PriceHistoryCreate(PriceHistoryBase):
     pass
 
-class PriceHistory(MongoBase, PriceHistoryBase):
+class PriceHistory(ORMBase, PriceHistoryBase):
     id: str
     product_id: str
     date: datetime
@@ -144,7 +148,7 @@ class UserLogin(BaseModel):
     phone: str
     password: str
 
-class User(MongoBase, UserBase):
+class User(ORMBase, UserBase):
     id: str
     avatar: Optional[str] = None
     is_active: bool
@@ -224,14 +228,14 @@ class PaymentCardCreate(BaseModel):
     owner_name: str
     card_type: str
 
-class PaymentCardOut(MongoBase):
+class PaymentCardOut(ORMBase):
     id: str
     owner_name: str
     last4: str
     expiry: str
     card_type: str
 
-class TransactionOut(MongoBase):
+class TransactionOut(ORMBase):
     id: str
     amount: float
     type: str
@@ -239,7 +243,7 @@ class TransactionOut(MongoBase):
     transaction_id: str
     created_at: str
 
-class AuditLogOut(MongoBase):
+class AuditLogOut(ORMBase):
     id: str
     action: str
     detail: dict
@@ -261,14 +265,14 @@ class OrderCreate(BaseModel):
     items: List[OrderItemBase]
     delivery_method: str = "courier"
 
-class OrderItem(MongoBase, OrderItemBase):
+class OrderItem(ORMBase, OrderItemBase):
     price_at_purchase: float
     product_name: Optional[str] = None
 
 class OrderStatusUpdate(BaseModel):
     status: OrderStatus
 
-class Order(MongoBase):
+class Order(ORMBase):
     id: str
     date: datetime
     status: OrderStatus
@@ -288,7 +292,7 @@ class CategoryBase(BaseModel):
 class CategoryCreate(CategoryBase):
     pass
 
-class Category(MongoBase, CategoryBase):
+class Category(ORMBase, CategoryBase):
     id: str
 
 # Auth Response
@@ -321,7 +325,7 @@ class ContractStatus(str, enum.Enum):
     completed = "completed"
     cancelled = "cancelled"
 
-class PublicUserProfile(MongoBase):
+class PublicUserProfile(ORMBase):
     id: str
     name: Optional[str] = None
     avatar: Optional[str] = None
@@ -363,7 +367,7 @@ class ReviewCreate(BaseModel):
         return v
 
 
-class ReviewOut(MongoBase):
+class ReviewOut(ORMBase):
     id: str
     reviewer_id: str
     reviewer_name: Optional[str] = None
@@ -405,15 +409,15 @@ class ClickPaymentCreate(BaseModel):
 class ContractCreate(BaseModel):
     buyer_id: str
     title: str
-    description: Optional[str] = None
+    terms: Optional[str] = None
     amount: float
 
-class ContractOut(MongoBase):
+class ContractOut(ORMBase):
     id: str
     buyer_id: str
     seller_id: str
     title: str
-    description: Optional[str] = None
+    terms: Optional[str] = None
     amount: float
     status: ContractStatus
     created_at: datetime

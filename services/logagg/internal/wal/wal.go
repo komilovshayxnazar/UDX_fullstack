@@ -1,12 +1,6 @@
-// Package wal implements the Write-Ahead Log used by the central server for
-// crash-safe durability. Each record is a length-prefixed, zstd-compressed
-// batch of LogLine records:
-//
+// Package wal implements the Write-Ahead Log used by the central server for crash-safe durability. Each record is a length-prefixed, zstd-compressed batch of LogLine records:
 //	[u32 LE length][zstd(json_array_of_logline)]
-//
-// On startup the server replays the WAL into the storage engine, then opens
-// it for append. Every Append is followed by an fsync, so a power loss can
-// lose at most a single in-flight batch.
+// On startup the server replays the WAL into the storage engine, then opens it for append. Every Append is followed by an fsync, so a power loss can lose at most a single in-flight batch.
 package wal
 
 import (
@@ -22,12 +16,10 @@ import (
 	"github.com/shayxnazar/logagg/internal/logline"
 )
 
-// MaxRecordSize caps a single WAL record at 16 MiB. Anything bigger is
-// almost certainly a bug or a corrupt log; we refuse rather than allocate.
+// MaxRecordSize caps a single WAL record at 16 MiB. Anything bigger is almost certainly a bug or a corrupt log; we refuse rather than allocate.
 const MaxRecordSize = 16 * 1024 * 1024
 
-// WAL is a single-writer, multi-reader append log. The central server
-// serializes writes through its worker pool, so the lock is mostly defensive.
+// WAL is a single-writer, multi-reader append log. The central server serializes writes through its worker pool, so the lock is mostly defensive.
 type WAL struct {
 	mu   sync.Mutex
 	path string
@@ -35,9 +27,7 @@ type WAL struct {
 	bw   *bufio.Writer
 }
 
-// Open opens (or creates) the WAL at path, replaying existing records to
-// the consumer. If the file is empty, an empty WAL is returned and replay
-// is a no-op.
+// Open opens (or creates) the WAL at path, replaying existing records to the consumer. If the file is empty, an empty WAL is returned and replay is a no-op.
 func Open(path string, replay func([]logline.LogLine) error) (*WAL, error) {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return nil, fmt.Errorf("wal: mkdir: %w", err)

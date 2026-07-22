@@ -12,16 +12,15 @@ all live here and ship together via one `docker compose` stack.
 | Layer          | Path                 | Runtime                                   |
 | -------------- | -------------------- | ------------------------------------------ |
 | Web frontend   | `src/`                | Vite + React 18 + TypeScript, Radix UI     |
-| Backend API    | `backend/`            | FastAPI + Motor (MongoDB), Beanie ODM      |
+| Backend API    | `backend/`            | FastAPI + SQLAlchemy 2.0 (async) + asyncpg, Alembic migrations |
 | Android client | `android_app/`        | Kotlin + Jetpack Compose                   |
 | Rate-limit gateway | `services/dyn-gateway/` | Go — reverse proxy, token-bucket limiter, circuit breaker |
 | Log aggregator | `services/logagg/`    | Go — gRPC ingest, WAL, chunk store, query CLI |
 | In-memory store | `services/memdb/`     | Go — KV store + WAL, backend's OTP/session store |
 
-Supporting infra (all run via Docker): **MongoDB** (primary DB),
-**Redis** (cache + OTP/session fallback), **Neo4j** (optional,
-recommendation graph), **Nginx** (serves the built frontend, fronts
-the API).
+Supporting infra (all run via Docker): **PostgreSQL** (primary DB, schema
+owned by Alembic), **Redis** (cache + OTP/session fallback), **Nginx**
+(serves the built frontend, fronts the API).
 
 ### Request path
 
@@ -29,10 +28,9 @@ the API).
 Browser ──▶ Nginx ──▶ /api/*  ──▶ gateway (rate limit + circuit breaker) ──▶ backend (FastAPI)
                   └──▶ /ws/*, /uploads/*  ─────────────────────────────▶ backend (direct)
 
-backend ──▶ MongoDB (data)
+backend ──▶ PostgreSQL (data)
         ├─▶ memdb (OTP/session, primary) ──▶ Redis (fallback) ──▶ in-process (last resort)
         ├─▶ Redis (product/category cache)
-        ├─▶ Neo4j (recommendations, optional)
         └─▶ JSON-line log file ──▶ logagg-agent ──▶ logagg-server (searchable log store)
 ```
 
@@ -46,7 +44,8 @@ backend ──▶ MongoDB (data)
   idempotency keys, wallet + transaction ledger, audit log.
 - **Auth** — phone/Telegram-bot OTP login and Google OAuth, JWT
   sessions.
-- **Recommendations** — SVD-based, backed by an optional Neo4j graph.
+- **Recommendations** — SVD matrix factorization (scikit-learn) with a
+  SQL-based item-item collaborative-filtering fallback.
 - **Weather** widget via OpenWeather.
 - **Localization** — Android app ships English, Russian, and five
   Central Asian locales (uz, kk, ky, tg + more).
@@ -61,16 +60,18 @@ backend ──▶ MongoDB (data)
 
 ```
 src/               Web frontend (Vite + React + TS)
-backend/           FastAPI backend (Motor/Beanie, routers, services, core)
+backend/           FastAPI backend (SQLAlchemy + Alembic, routers, services, core)
 android_app/       Android client (Kotlin + Jetpack Compose)
 services/
   dyn-gateway/     Rate-limit / circuit-breaker reverse proxy (Go)
   logagg/          Distributed log aggregator: agent + server + query CLI (Go)
   memdb/           In-memory KV store with WAL (Go) + Python client
 docker/            Nginx config for the frontend container
-docker-compose.yml Full stack: mongo, redis, neo4j, memdb, backend,
+docker-compose.yml Full stack: postgres, redis, memdb, backend,
                    gateway, logagg-server, logagg-agent, frontend
-infra/             AWS deployment artefacts (see AWS_DEPLOY.md)
+infra/             AWS ECS/CloudFront deployment artefacts — stale,
+                   still targets the old Mongo/Neo4j architecture;
+                   needs a rewrite before it's used again
 ```
 
 ## Quick start
@@ -90,8 +91,7 @@ This builds and starts every service above and serves the app at
 ## More docs
 
 - [`RUN_PROJECT.md`](RUN_PROJECT.md) — full run/deploy guide, manual setup per layer
-- [`AWS_DEPLOY.md`](AWS_DEPLOY.md) — production deployment on AWS
-- [`NEO4J_SETUP.md`](NEO4J_SETUP.md) — enabling the recommendation graph
-- [`BUGS.md`](BUGS.md) — production-readiness audit log
+- [`BUGS.md`](BUGS.md) — production-readiness audit log (predates the
+  Mongo→PostgreSQL migration; re-verify each item before trusting it)
 - `backend/*.md` — Google OAuth, messaging API, password rules, weather API setup
 - `services/*/README.md` — each Go service's design and CLI flags

@@ -1,22 +1,37 @@
-from fastapi import APIRouter, Depends, Header, HTTPException, Request
 import uuid
+from fastapi import APIRouter, Depends, Header, HTTPException, Request
+from fastapi.encoders import jsonable_encoder
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 import models
 import schemas
+from db import get_db
 from core.dependencies import get_current_user
 from core.security import get_password_hash, verify_password
 from core.encryption import encrypt, decrypt, hmac_hash
 from core.cache import cache_get, cache_set, cache_delete, PROFILE_TTL
 from core.errors import E
-from fastapi.encoders import jsonable_encoder
 from routers.auth import consume_verified_session, _normalize_phone
 from services import wallet_service, payment_service
 from services.audit_service import log as audit_log
 
 router = APIRouter(prefix="/users", tags=["users"])
 
+
+async def _get_card(db: AsyncSession, user_id, card_id: str) -> models.PaymentCard | None:
+    try:
+        cid = uuid.UUID(card_id)
+    except ValueError:
+        return None
+    result = await db.execute(
+        select(models.PaymentCard).where(models.PaymentCard.id == cid, models.PaymentCard.user_id == user_id)
+    )
+    return result.scalar_one_or_none()
+
+
 @router.post("/", response_model=schemas.User)
-async def create_user(user: schemas.UserCreate):
+async def create_user(user: schemas.UserCreate, db: AsyncSession = Depends(get_db)):
     normalized_phone_pre = _normalize_phone(user.phone)
     ph_pre = hmac_hash(normalized_phone_pre)
 
@@ -29,7 +44,8 @@ async def create_user(user: schemas.UserCreate):
 
     normalized_phone = _normalize_phone(user.phone)
     ph = hmac_hash(normalized_phone)
-    db_user = await models.User.find_one(models.User.phone_hash == ph)
+    result = await db.execute(select(models.User).where(models.User.phone_hash == ph))
+    db_user = result.scalar_one_or_none()
     if db_user:
         raise HTTPException(status_code=400, detail=E.PHONE_ALREADY_REGISTERED)
     hashed_password = get_password_hash(user.password)
@@ -38,58 +54,69 @@ async def create_user(user: schemas.UserCreate):
         phone=encrypt(normalized_phone),
         phone_hash=ph,
         hashed_password=hashed_password,
-        role=user.role,
+        role=models.UserRole(user.role.value),
         name=user.name,
         telegram_username=encrypt(tg) if tg else None,
         telegram_username_hash=hmac_hash(tg) if tg else None,
     )
-    await new_user.insert()
-    return schemas.user_to_schema(new_user)
+    db.add(new_user)
+    await db.commit()
+    await db.refresh(new_user)
+    return schemas.user_to_schema(new_user, balance=0.0)
 
 @router.get("/me", response_model=schemas.User)
-async def read_users_me(current_user: models.User = Depends(get_current_user)):
-    return schemas.user_to_schema(current_user)
+async def read_users_me(
+    current_user: models.User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    balance = await wallet_service.get_balance(db, current_user)
+    return schemas.user_to_schema(current_user, balance=balance)
 
 
 @router.get("/{user_id}/public", response_model=schemas.PublicUserProfile)
-async def get_public_profile(user_id: str):
+async def get_public_profile(user_id: str, db: AsyncSession = Depends(get_db)):
     cache_key = f"public_profile:{user_id}"
     cached = await cache_get(cache_key)
     if cached is not None:
         return cached
 
-    user = await models.User.get(user_id)
+    try:
+        uid = uuid.UUID(user_id)
+    except ValueError:
+        raise HTTPException(status_code=404, detail=E.USER_NOT_FOUND)
+
+    user = await db.get(models.User, uid)
     if not user or not user.is_public:
         raise HTTPException(status_code=404, detail=E.USER_NOT_FOUND)
 
     # Savdo statistikasi
-    orders = await models.Order.find(models.Order.seller_id == user_id).to_list()
+    orders_result = await db.execute(select(models.Order).where(models.Order.seller_id == uid))
+    orders = orders_result.scalars().all()
     total_orders   = len(orders)
     successful     = sum(1 for o in orders if o.status == models.OrderStatus.completed)
     unsuccessful   = sum(1 for o in orders if o.status == models.OrderStatus.cancelled)
     in_progress    = total_orders - successful - unsuccessful
 
     # Sharhlar (oxirgi 20 ta)
-    reviews = await (
-        models.Review.find(models.Review.seller_id == user_id)
-        .sort("-created_at").limit(20).to_list()
+    reviews_result = await db.execute(
+        select(models.Review)
+        .where(models.Review.seller_id == uid)
+        .order_by(models.Review.created_at.desc())
+        .limit(20)
     )
+    reviews = reviews_result.scalars().all()
     reviewer_ids = list({r.reviewer_id for r in reviews})
-    reviewers = {}
+    reviewers: dict = {}
     if reviewer_ids:
-        from beanie import PydanticObjectId
-        from beanie.operators import In
-        docs = await models.User.find(
-            In(models.User.id, [PydanticObjectId(rid) for rid in reviewer_ids if PydanticObjectId.is_valid(rid)])
-        ).to_list()
-        reviewers = {str(d.id): d.name for d in docs}
+        docs_result = await db.execute(select(models.User).where(models.User.id.in_(reviewer_ids)))
+        reviewers = {d.id: d.name for d in docs_result.scalars().all()}
 
     reviews_out = [
         schemas.ReviewOut(
-            id=str(r.id), reviewer_id=r.reviewer_id,
+            id=str(r.id), reviewer_id=str(r.reviewer_id),
             reviewer_name=reviewers.get(r.reviewer_id),
-            seller_id=r.seller_id, product_id=r.product_id,
-            order_id=r.order_id, rating=r.rating, comment=r.comment,
+            seller_id=str(r.seller_id), product_id=str(r.product_id) if r.product_id else None,
+            order_id=str(r.order_id), rating=r.rating, comment=r.comment,
             is_verified_purchase=r.is_verified_purchase, created_at=r.created_at
         ) for r in reviews
     ]
@@ -110,7 +137,8 @@ async def get_public_profile(user_id: str):
 @router.put("/me", response_model=schemas.User)
 async def update_user_me(
     user_update: schemas.UserUpdate,
-    current_user: models.User = Depends(get_current_user)
+    current_user: models.User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ):
     if user_update.name is not None:
         current_user.name = user_update.name
@@ -120,15 +148,18 @@ async def update_user_me(
         current_user.description = user_update.description
     if user_update.is_public is not None:
         current_user.is_public = user_update.is_public
-        
-    await current_user.save()
-    await cache_delete(f"public_profile:{str(current_user.id)}")
-    return schemas.user_to_schema(current_user)
+
+    await db.commit()
+    await db.refresh(current_user)
+    await cache_delete(f"public_profile:{current_user.id}")
+    balance = await wallet_service.get_balance(db, current_user)
+    return schemas.user_to_schema(current_user, balance=balance)
 
 @router.put("/me/password")
 async def update_password_me(
     password_update: schemas.PasswordUpdate,
-    current_user: models.User = Depends(get_current_user)
+    current_user: models.User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ):
     if not current_user.hashed_password:
         raise HTTPException(status_code=400, detail=E.OAUTH_NO_PASSWORD)
@@ -137,80 +168,106 @@ async def update_password_me(
         raise HTTPException(status_code=400, detail=E.INCORRECT_PASSWORD)
 
     current_user.hashed_password = get_password_hash(password_update.new_password)
-    await current_user.save()
+    await db.commit()
     return {"message": "Password updated successfully"}
 
 @router.put("/me/phone")
 async def update_phone_me(
     phone_update: schemas.PhoneUpdate,
-    current_user: models.User = Depends(get_current_user)
+    current_user: models.User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ):
     if not current_user.hashed_password:
         raise HTTPException(status_code=400, detail=E.OAUTH_NO_PASSWORD)
 
     if not verify_password(phone_update.password, current_user.hashed_password):
         raise HTTPException(status_code=400, detail=E.INCORRECT_PASSWORD)
-        
+
     new_phone = _normalize_phone(phone_update.new_phone)
     new_ph    = hmac_hash(new_phone)
-    existing  = await models.User.find_one(models.User.phone_hash == new_ph)
+    result = await db.execute(select(models.User).where(models.User.phone_hash == new_ph))
+    existing  = result.scalar_one_or_none()
     if existing:
         raise HTTPException(status_code=400, detail=E.PHONE_ALREADY_REGISTERED)
     current_user.phone      = encrypt(new_phone)
     current_user.phone_hash = new_ph
-    await current_user.save()
+    await db.commit()
     return {"message": "Phone updated successfully"}
 
 @router.put("/me/role", response_model=schemas.User)
 async def update_role_me(
     role_update: schemas.RoleUpdate,
-    current_user: models.User = Depends(get_current_user)
+    current_user: models.User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ):
     allowed_roles = {models.UserRole.buyer, models.UserRole.seller}
-    if role_update.role not in allowed_roles:
+    new_role = models.UserRole(role_update.role.value)
+    if new_role not in allowed_roles:
         raise HTTPException(status_code=403, detail=E.ROLE_FORBIDDEN)
-    current_user.role = role_update.role
-    await current_user.save()
-    return schemas.user_to_schema(current_user)
+    current_user.role = new_role
+    await db.commit()
+    balance = await wallet_service.get_balance(db, current_user)
+    return schemas.user_to_schema(current_user, balance=balance)
 
 @router.put("/me/2fa", response_model=schemas.User)
 async def update_2fa_me(
     two_factor_update: schemas.TwoFactorUpdate,
-    current_user: models.User = Depends(get_current_user)
+    current_user: models.User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ):
     current_user.is_2fa_enabled = two_factor_update.is_2fa_enabled
-    await current_user.save()
-    return schemas.user_to_schema(current_user)
+    await db.commit()
+    balance = await wallet_service.get_balance(db, current_user)
+    return schemas.user_to_schema(current_user, balance=balance)
 
 @router.get("/me/cards", response_model=list[schemas.PaymentCardOut])
-async def get_cards(current_user: models.User = Depends(get_current_user)):
-    return current_user.payment_cards
+async def get_cards(
+    current_user: models.User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(models.PaymentCard).where(models.PaymentCard.user_id == current_user.id))
+    cards = result.scalars().all()
+    return [
+        schemas.PaymentCardOut(
+            id=str(c.id), owner_name=c.owner_name, last4=c.last4,
+            expiry=c.expiry, card_type=c.card_type,
+        )
+        for c in cards
+    ]
 
 @router.post("/me/cards", response_model=schemas.PaymentCardOut)
 async def add_card(
     card: schemas.PaymentCardCreate,
-    current_user: models.User = Depends(get_current_user)
+    current_user: models.User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ):
     # card_token was issued by the mock/real gateway — full PAN never arrives here.
     new_card = models.PaymentCard(
-        id=str(uuid.uuid4()),
+        user_id=current_user.id,
         owner_name=card.owner_name,
         last4=card.last4,
         expiry=card.expiry,
         card_type=card.card_type,
-        card_token=card.card_token
+        card_token=card.card_token,
     )
-    current_user.payment_cards.append(new_card)
-    await current_user.save()
-    return new_card
+    db.add(new_card)
+    await db.commit()
+    await db.refresh(new_card)
+    return schemas.PaymentCardOut(
+        id=str(new_card.id), owner_name=new_card.owner_name, last4=new_card.last4,
+        expiry=new_card.expiry, card_type=new_card.card_type,
+    )
 
 @router.delete("/me/cards/{card_id}")
 async def delete_card(
     card_id: str,
-    current_user: models.User = Depends(get_current_user)
+    current_user: models.User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ):
-    current_user.payment_cards = [c for c in current_user.payment_cards if c.id != card_id]
-    await current_user.save()
+    card = await _get_card(db, current_user.id, card_id)
+    if card:
+        await db.delete(card)
+        await db.commit()
     return {"detail": "Card removed"}
 
 @router.post("/me/balance/deposit", response_model=schemas.User)
@@ -218,11 +275,12 @@ async def deposit_balance(
     http_request: Request,
     request: schemas.TransactionRequest,
     idempotency_key: str = Header(default=None, alias="X-Idempotency-Key"),
-    current_user: models.User = Depends(get_current_user)
+    current_user: models.User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ):
     if request.amount <= 0:
         raise HTTPException(status_code=400, detail=E.AMOUNT_MUST_BE_POSITIVE)
-    card = next((c for c in current_user.payment_cards if c.id == request.card_id), None)
+    card = await _get_card(db, current_user.id, request.card_id)
     if not card:
         raise HTTPException(status_code=400, detail=E.CARD_NOT_FOUND)
 
@@ -230,7 +288,7 @@ async def deposit_balance(
         idempotency_key = str(uuid.uuid4())
 
     result = await payment_service.charge_card(
-        user=current_user, card=card, amount=request.amount,
+        db, user=current_user, card=card, amount=request.amount,
         idempotency_key=idempotency_key, request=http_request
     )
     if result["status"] != "success":
@@ -239,33 +297,36 @@ async def deposit_balance(
     # Skip credit on idempotent replay — gateway was not charged again so balance must not increase
     if not result.get("_replay"):
         await wallet_service.credit(
-            user=current_user, amount=request.amount,
+            db, user=current_user, amount=request.amount,
             card_token=card.card_token, idempotency_key=idempotency_key
         )
 
-    user = await models.User.get(current_user.id)
-    return schemas.user_to_schema(user)
+    balance = await wallet_service.get_balance(db, current_user)
+    return schemas.user_to_schema(current_user, balance=balance)
 
 @router.post("/me/balance/withdraw", response_model=schemas.User)
 async def withdraw_balance(
     http_request: Request,
     request: schemas.TransactionRequest,
-    current_user: models.User = Depends(get_current_user)
+    current_user: models.User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ):
     if request.amount <= 0:
         raise HTTPException(status_code=400, detail=E.AMOUNT_MUST_BE_POSITIVE)
-    if current_user.balance < request.amount:
+    balance = await wallet_service.get_balance(db, current_user)
+    if balance < request.amount:
         raise HTTPException(status_code=400, detail=E.INSUFFICIENT_FUNDS)
-    card = next((c for c in current_user.payment_cards if c.id == request.card_id), None)
+    card = await _get_card(db, current_user.id, request.card_id)
     if not card:
         raise HTTPException(status_code=400, detail=E.CARD_NOT_FOUND)
 
     await wallet_service.debit(
-        user=current_user, amount=request.amount, card_token=card.card_token
+        db, user=current_user, amount=request.amount, card_token=card.card_token
     )
     await audit_log(
-        user=current_user, action=models.AuditAction.withdraw,
+        db, user=current_user, action=models.AuditAction.withdraw,
         detail={"amount": request.amount, "card_last4": card.last4},
         request=http_request
     )
-    return schemas.user_to_schema(current_user)
+    balance = await wallet_service.get_balance(db, current_user)
+    return schemas.user_to_schema(current_user, balance=balance)
